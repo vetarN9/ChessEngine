@@ -10,7 +10,7 @@ LINKS		:=
 # Directories, Objects, and Binary 
 SRC_DIR		:= src
 BUILD_DIR	:= obj
-TARGET_DIR  := bin
+TARGET_DIR	:= bin
 
 SRC_EXT		:= cpp
 OBJ_EXT		:= o
