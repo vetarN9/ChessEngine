@@ -119,7 +119,7 @@ constexpr uint64_t knightAttackMask(uint64_t knight)
 
 inline uint64_t getAttackMask(PieceType pieceType, int square, uint64_t blockers) {
 
-  assert((pieceType != PAWN) && (withinBoard(square)));
+  assert(pieceType != PAWN && withinBoard(square));
 
   switch (pieceType)
   {

@@ -39,7 +39,7 @@ private:
     Color sideToMove;
 };
 
-inline uint64_t Position::getPieceMask(PieceType pieceType = ALL_PIECES) const
+inline uint64_t Position::getPieceMask(PieceType pieceType /*=ALL_PIECES */) const
 {
     return typeBoard[pieceType];
 }

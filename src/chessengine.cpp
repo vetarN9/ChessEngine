@@ -39,9 +39,9 @@ int main(int argc, char* argv[])
     pos.movePiece(C4, H8);
     pos.print();
 
-    /* for (int square = A1; square < NUM_SQUARES; square++)
+    for (int square = A1; square < NUM_SQUARES; square++)
     {
         Bitboard::print(getAttackMask(QUEEN, square, squareMasks[D4] | squareMasks[D5] | squareMasks[E4] | squareMasks[E5]));
-    } */
+    }
     
 }
