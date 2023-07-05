@@ -1,6 +1,6 @@
 .DELETE_ON_ERROR:
 
-TARGET      := chessEngine
+TARGET		:= chessEngine
 
 COMPILER	:= g++
 FLAGS		:= -Wall -std=c++17 -MMD
