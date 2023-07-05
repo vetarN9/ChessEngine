@@ -8,13 +8,13 @@ LINKS		:=
 
 
 # Directories, Objects, and Binary 
-SRC_DIR     := src
-BUILD_DIR   := obj
-TARGET_DIR	:= bin
+SRC_DIR		:= src
+BUILD_DIR	:= obj
+TARGET_DIR  := bin
 
-SRC_EXT     := cpp
-OBJ_EXT     := o
-DEP_EXT     := d
+SRC_EXT		:= cpp
+OBJ_EXT		:= o
+DEP_EXT		:= d
 
 #-----------------------------------
 #	 DO NOT EDIT BELOW THIS LINE
