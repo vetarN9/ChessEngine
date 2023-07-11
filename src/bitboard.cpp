@@ -65,81 +65,82 @@ void Bitboard::print(uint64_t bitboard)
 
 namespace {
 
-    // Returns a bitmask for all squares that the given sliding piece attacks, counting up until
-    // the board edge or a blocker from the given blockers.
-    uint64_t slidingAttack(PieceType pieceType, int attackerSquare, uint64_t blockers)
+// Returns a bitmask for all squares that the given sliding piece attacks, counting up until
+// the board edge or a blocker from the given blockers.
+uint64_t slidingAttack(PieceType pieceType, int attackerSquare, uint64_t blockers)
+{
+    uint64_t attacks = 0;
+
+    Direction plus[]   = {NORTH, SOUTH, EAST, WEST};
+    Direction cross[]  = {NORTH_EAST, SOUTH_EAST, SOUTH_WEST, NORTH_WEST};
+
+    for (Direction dir : (pieceType == BISHOP ? cross : plus))
     {
-        uint64_t attacks = 0;
-
-        Direction plus[]   = {NORTH, SOUTH, EAST, WEST};
-        Direction cross[]  = {NORTH_EAST, SOUTH_EAST, SOUTH_WEST, NORTH_WEST};
-
-        for (Direction dir : (pieceType == BISHOP ? cross : plus))
-        {
-            int square = attackerSquare;
-            while (shift(squareMasks[square], dir) && !(squareMasks[square] & blockers))
-                attacks |= squareMasks[square += dir];
-        }
-
-        return attacks;
+        int square = attackerSquare;
+        while (shift(squareMasks[square], dir) && !(squareMasks[square] & blockers))
+            attacks |= squareMasks[square += dir];
     }
 
-    // Precalculates all bishop and rook attacks and uses the fancy magic bitboard
-    // technique to make a lookup with a board state to see where the sliding piece
-    // attacks. For reference, see: https://www.chessprogramming.org/Magic_Bitboards
-    void initMagics(PieceType pieceType, Magic magics[], uint64_t attackTable[])
+    return attacks;
+}
+
+// Precalculates all bishop and rook attacks and uses the fancy magic bitboard
+// technique to make a lookup with a board state to see where the sliding piece
+// attacks. For reference, see: https://www.chessprogramming.org/Magic_Bitboards
+void initMagics(PieceType pieceType, Magic magics[], uint64_t attackTable[])
+{
+    uint64_t blockers[4096], reference[4096], edgeMask;
+    int epoch[4096] = {}, size = 0, count = 0;
+
+    for (int square = A1; square < NUM_SQUARES; square++)
     {
-        uint64_t blockers[4096], reference[4096], edgeMask;
-        int epoch[4096] = {}, size = 0, count = 0;
+        // Alias for the curent magic
+        Magic& m = magics[square];
 
-        for (int square = A1; square < NUM_SQUARES; square++)
+        edgeMask = ((Rank1Mask | Rank8Mask) & ~getRankMask(square)) | ((FileAMask | FileHMask) & ~getFileMask(square));
+
+        // Init magic members
+        m.mask = slidingAttack(pieceType, square, 0) & ~edgeMask;
+        m.shift = NUM_SQUARES - numBits(m.mask);
+        m.attacks = (square == A1) ? attackTable : magics[square-1].attacks + size;
+
+        // Carry-Rippler trick to enumerate all permutations of blockers that can
+        // block the piece. 
+        // https://www.chessprogramming.org/Traversing_Subsets_of_a_Set
+        uint64_t bitboard = 0;
+        size = 0;
+        do
         {
-            // Alias for the curent magic
-            Magic& magic = magics[square];
+            reference[size] = slidingAttack(pieceType, square, bitboard);
+            blockers[size] = bitboard;
+            bitboard = (bitboard - m.mask) & m.mask;
+            size++;
+        } while (bitboard);
 
-            edgeMask = ((Rank1Mask | Rank8Mask) & ~getRankMask(square)) | ((FileAMask | FileHMask) & ~getFileMask(square));
+        // Brute force to find a magic number that maps every permutation of blockers 
+        // to an index that looks up the correct sliding attack in the attackTable.
+        for (int i = 0; i < size;)
+        {
+            m.magic = random64FewBits();
 
-            // Init magic members
-            magic.mask = slidingAttack(pieceType, square, 0) & ~edgeMask;
-            magic.shift = NUM_SQUARES - numBits(magic.mask);
-            magic.attacks = (square == A1) ? attackTable : magics[square-1].attacks + size;
-
-            // Carry-Rippler trick to enumerate all permutations of blockers that can
-            // block the piece. 
-            // https://www.chessprogramming.org/Traversing_Subsets_of_a_Set
-            uint64_t bitboard = 0;
-            size = 0;
-            do
+            // Verify that the magic number maps each blockers to an index that 
+            // looks up the correct sliding attack
+            for (++count, i = 0; i < size; ++i)
             {
-                reference[size] = slidingAttack(pieceType, square, bitboard);
-                blockers[size] = bitboard;
-                bitboard = (bitboard - magic.mask) & magic.mask;
-                size++;
-            } while (bitboard);
+                uint32_t index = m.index(blockers[i]);
 
-            // Brute force to find a magic number that maps every permutation of blockers 
-            // to an index that looks up the correct sliding attack in the attackTable.
-            for (int i = 0; i < size;)
-            {
-                magic.magic = random64FewBits();
-
-                // Verify that the magic number maps each blockers to an index that 
-                // looks up the correct sliding attack
-                for (++count, i = 0; i < size; ++i)
+                if (epoch[index] < count)
                 {
-                    uint32_t index = magic.index(blockers[i]);
-
-                    if (epoch[index] < count)
-                    {
-                        epoch[index] = count;
-                        magic.attacks[index] = reference[i];
-                    }
-                    else if (magic.attacks[index] != reference[i]) // magic number did not work
-                        break;
-                }   
-            }
+                    epoch[index] = count;
+                    m.attacks[index] = reference[i];
+                }
+                else if (m.attacks[index] != reference[i]) // magic number did not work
+                    break;
+            }   
         }
     }
+}
+
 } // anonymous namespace
 
 } // namespace ChessEngine

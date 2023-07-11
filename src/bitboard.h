@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <cassert>
 
-#include "types.h"
+#include "defs.h"
 
 namespace ChessEngine {
 
@@ -33,7 +33,7 @@ constexpr uint64_t FileFMask = FileAMask << 5;
 constexpr uint64_t FileGMask = FileAMask << 6;
 constexpr uint64_t FileHMask = FileAMask << 7;
 
-constexpr uint64_t boardEdgeMask = Rank1Mask |Rank8Mask | FileAMask | FileHMask;
+constexpr uint64_t boardEdgeMask = Rank1Mask | Rank8Mask | FileAMask | FileHMask;
 
 extern uint64_t squareMasks[NUM_SQUARES];
 extern uint64_t pawnAttacks[NUM_COLORS][NUM_SQUARES];
