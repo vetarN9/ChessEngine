@@ -6,6 +6,7 @@
 
 #include "position.h"
 #include "bitboard.h"
+#include "defs.h"
 
 using namespace ChessEngine;
 
@@ -24,24 +25,14 @@ int main(int argc, char* argv[])
 
     Position pos;
 
-    pos.init();
-    pos.placePiece(WHITE_PAWN, C4);
-    pos.print();
-    pos.placePiece(BLACK_KNIGHT, E6);
-    pos.placePiece(WHITE_KNIGHT, A6);
-    pos.placePiece(BLACK_QUEEN, B6);
-    pos.placePiece(WHITE_KING, C6);
-    pos.print();
-    pos.removePiece(A6);
-    pos.removePiece(E6);
-    pos.print();
-    pos.movePiece(C6, C3);
-    pos.movePiece(C4, H8);
+    pos.setPosFromFEN(startPosFEN);
     pos.print();
 
-    for (int square = A1; square < NUM_SQUARES; square++)
+    //Bitboard::print(getAttackMask(KNIGHT, square, pos.getPieceMask()));
+
+    /* for (int square = A1; square < NUM_SQUARES; square++)
     {
         Bitboard::print(getAttackMask(QUEEN, square, squareMasks[D4] | squareMasks[D5] | squareMasks[E4] | squareMasks[E5]));
-    }
+    } */
     
 }

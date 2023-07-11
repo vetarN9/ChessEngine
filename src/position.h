@@ -13,7 +13,7 @@ class Position
 public:
     static void init();
 
-    Position() { for (int i = 0; i < NUM_SQUARES; i++) board[i] = EMPTY; };
+    Position() { for (int i = 0; i < NUM_SQUARES; i++) pieceBoard[i] = EMPTY; };
     Position(const Position&) = delete;
 
     Position& setPosFromFEN(const std::string& fen);
@@ -31,7 +31,7 @@ public:
     void print();
 
 private:
-    Piece board[NUM_SQUARES];
+    Piece pieceBoard[NUM_SQUARES];
     uint64_t typeBoard[NUM_PIECE_TYPES];
     uint64_t colorBoard[NUM_COLORS];
     int numPieces[NUM_PIECE_TYPES * NUM_COLORS];
@@ -56,13 +56,13 @@ inline uint64_t Position::getColorMask(Color color) const
 
 inline Piece Position::pieceOn(Square square) const 
 {
-    return board[square];
+    return pieceBoard[square];
 }
 
 inline void Position::placePiece(Piece piece, Square square)
 {
     uint64_t squareMask = getSquareMask(square);
-    board[square] = piece;
+    pieceBoard[square] = piece;
 
     typeBoard[ALL_PIECES]       |= squareMask;
     typeBoard[getType(piece)]   |= squareMask;
@@ -75,9 +75,9 @@ inline void Position::placePiece(Piece piece, Square square)
 inline void Position::movePiece(Square from, Square to)
 {
     uint64_t moveMask = getSquareMask(from) | getSquareMask(to);
-    Piece piece = board[from];
-    board[from] = EMPTY;
-    board[to] = piece;
+    Piece piece = pieceBoard[from];
+    pieceBoard[from] = EMPTY;
+    pieceBoard[to] = piece;
 
     typeBoard[ALL_PIECES]       ^= moveMask;
     typeBoard[getType(piece)]   ^= moveMask;
@@ -87,8 +87,8 @@ inline void Position::movePiece(Square from, Square to)
 inline void Position::removePiece(Square square)
 {
     uint64_t squareMask = getSquareMask(square);
-    Piece piece = board[square];
-    board[square] = EMPTY;
+    Piece piece = pieceBoard[square];
+    pieceBoard[square] = EMPTY;
 
     typeBoard[ALL_PIECES]       ^= squareMask;
     typeBoard[getType(piece)]   ^= squareMask;
