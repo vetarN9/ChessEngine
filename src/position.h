@@ -13,7 +13,7 @@ class Position
 public:
     static void init();
 
-    Position() { for (int i = 0; i < NUM_SQUARES; i++) pieceBoard[i] = EMPTY; };
+    Position() = default;
     Position(const Position&) = delete;
 
     Position& setPosFromFEN(const std::string& fen);
@@ -29,6 +29,7 @@ public:
     void removePiece(Square square);
     
     void print();
+    void test();
 
 private:
     Piece pieceBoard[NUM_SQUARES];
@@ -37,7 +38,15 @@ private:
     int numPieces[NUM_PIECE_TYPES * NUM_COLORS];
     int ply;
     Color sideToMove;
+    Square enpassantSquare;
+    int fiftyMoveRule;
+    uint8_t castleRights;
 };
+
+inline void Position::test()
+{
+    std::cout << sideToMove << std::endl;
+}
 
 inline uint64_t Position::getPieceMask(PieceType pieceType /*=ALL_PIECES */) const
 {

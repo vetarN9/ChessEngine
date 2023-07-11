@@ -75,7 +75,6 @@ Position& Position::setPosFromFEN(const std::string& fen)
             placePiece(Piece(PieceToChar.find(token)), Square(square));
             square++;
         }
-        
     }
 
     // 2. Active color
@@ -86,17 +85,36 @@ Position& Position::setPosFromFEN(const std::string& fen)
     // 3. Castling availability
     while ((ss >> token) && !isspace(token))
     {
-        
+        switch (token)
+        {
+        case 'K': castleRights |= 1; break;
+        case 'Q': castleRights |= 2; break;
+        case 'k': castleRights |= 4; break;
+        case 'q': castleRights |= 8; break;
+        }
     }
 
     // 4. En passant target square
+    uint8_t file, rank;
+    ss >> file;
+    
+    enpassantSquare = NO_SQUARE;
 
+    if ((file != '-') && (ss >> rank))
+    {
+        Square epSq = getSquare(File(file - 'a'), Rank(rank - '1'));
+
+        // TODO: Check if valid en passant square
+        if (true)
+            enpassantSquare = epSq;
+    }
 
     // 5. Halfmove clock
-
+    ss >> std::skipws;
+    ss >> fiftyMoveRule;
 
     // 6. Fullmove number
-
+    ss >> ply;
 
     return *this;
 }
