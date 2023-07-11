@@ -27,6 +27,7 @@ int main(int argc, char* argv[])
 
     pos.setPosFromFEN(startPosFEN);
     pos.print();
+    pos.test();
 
     //Bitboard::print(getAttackMask(KNIGHT, square, pos.getPieceMask()));
 

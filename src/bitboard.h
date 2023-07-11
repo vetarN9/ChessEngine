@@ -101,6 +101,11 @@ constexpr uint64_t pawnAttackMask(uint64_t pawn, Color color)
                             : shift(pawn, SOUTH_WEST) | shift(pawn, SOUTH_EAST);
 }
 
+/* inline uint64_t pawnAttackMask(Square square, Color color)
+{
+  return pawnAttacks[color][square];
+} */
+
 constexpr uint64_t kingAttackMask(uint64_t king)
 {
     return shift(king, NORTH) | shift(king, NORTH_EAST) |
@@ -117,7 +122,8 @@ constexpr uint64_t knightAttackMask(uint64_t knight)
            shift(shift(knight, WEST),  NORTH_WEST) | shift(shift(knight,  WEST), SOUTH_WEST);
 }
 
-inline uint64_t getAttackMask(PieceType pieceType, int square, uint64_t blockers) {
+inline uint64_t getAttackMask(PieceType pieceType, int square, uint64_t blockers)
+{
 
   assert(pieceType != PAWN && withinBoard(square));
 
@@ -129,6 +135,8 @@ inline uint64_t getAttackMask(PieceType pieceType, int square, uint64_t blockers
   default    : return pseudoAttacks[pieceType][square];
   }
 }
+
+
 
 inline uint64_t getSquareMask(Square square)
 {
