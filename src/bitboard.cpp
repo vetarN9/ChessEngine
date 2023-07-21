@@ -5,113 +5,114 @@
 
 namespace ChessEngine {
 
-uint64_t squareMasks[NUM_SQUARES];
-uint64_t pawnAttacks[NUM_COLORS][NUM_SQUARES];
-uint64_t pseudoAttacks[NUM_PIECE_TYPES][NUM_SQUARES];
+Bitboard squareMasks[NUM_SQUARES];
+Bitboard lineMask[NUM_SQUARES][NUM_SQUARES];
+Bitboard betweenMask[NUM_SQUARES][NUM_SQUARES];
+Bitboard pawnAttacks[NUM_COLORS][NUM_SQUARES];
+Bitboard pseudoAttacks[NUM_PIECE_TYPES][NUM_SQUARES];
 
 Magic bishopMagics[NUM_SQUARES];
 Magic rookMagics[NUM_SQUARES];
 
 namespace {
 
-uint64_t bishopAttackTable[5248];
-uint64_t rookAttackTable[102400];
+Bitboard bishopAttackTable[5248];
+Bitboard rookAttackTable[102400];
 
-void initMagics(PieceType pieceType, Magic magics[], uint64_t attackTable[]);
+void initMagics(PieceType pt, Magic magics[], Bitboard attackTable[]);
+Bitboard slidingAttack(PieceType pt, Square attackerSquare, Bitboard blockers);
 
 } // anonymous namespace
 
 
-void Bitboard::init()
+// Initializes pre-calculated attack tables using magic bitboards
+void Bitboards::init()
 {
-    for (int square = A1; square < NUM_SQUARES; square++)
+    // Init square mask
+    for (Square square = A1; square < NUM_SQUARES; square++)
         squareMasks[square] = 1ULL << square;
+
+    // Init between mask
     
     initMagics(BISHOP, bishopMagics, bishopAttackTable);
     initMagics(ROOK, rookMagics, rookAttackTable);
 
-    for (int square = A1; square < NUM_SQUARES; square++)
+    // Init pseudo attack tables
+    for (Square sq = A1; sq < NUM_SQUARES; sq++)
     {
-        pseudoAttacks[KING][square]   = kingAttackMask(squareMasks[square]);
-        pseudoAttacks[KNIGHT][square] = knightAttackMask(squareMasks[square]);
-        pseudoAttacks[BISHOP][square] = getAttackMask(BISHOP, square, 0);
-        pseudoAttacks[ROOK][square]   = getAttackMask(ROOK,   square, 0);
-        pseudoAttacks[QUEEN][square]  = pseudoAttacks[BISHOP][square] | pseudoAttacks[ROOK][square];
+        pawnAttacks[WHITE][sq]    = pawnAttackMask(squareMasks[sq], WHITE);
+        pawnAttacks[BLACK][sq]    = pawnAttackMask(squareMasks[sq], BLACK);
+        pseudoAttacks[KING][sq]   = kingAttackMask(squareMasks[sq]);
+        pseudoAttacks[KNIGHT][sq] = knightAttackMask(squareMasks[sq]);
+        pseudoAttacks[BISHOP][sq] = attackMask(BISHOP, sq, 0);
+        pseudoAttacks[ROOK][sq]   = attackMask(ROOK,   sq, 0);
+        pseudoAttacks[QUEEN][sq]  = pseudoAttacks[BISHOP][sq] | pseudoAttacks[ROOK][sq];
 
-        pawnAttacks[WHITE][square] = pawnAttackMask(squareMasks[square], WHITE);
-        pawnAttacks[BLACK][square] = pawnAttackMask(squareMasks[square], BLACK);
+        // Init line and between masks
+        for (Square sq2 = A1; sq2 < NUM_SQUARES; sq2++)
+        {
+            for (PieceType pt : { BISHOP, ROOK })
+            {
+                if (pseudoAttacks[pt][sq] & sq2)
+                {
+                    lineMask[sq][sq2]    = (attackMask(pt, sq, 0) & attackMask(pt, sq2, 0)) | sq | sq2;
+                    betweenMask[sq][sq2] = (attackMask(pt, sq, getSquareMask(sq2)) & attackMask(pt, sq2, getSquareMask(sq)));
+                }
+
+                betweenMask[sq][sq2] |= sq2;
+            }
+        }
     }
 }
 
 // Prints the given bitboard to stdout
-void Bitboard::print(uint64_t bitboard)
+void Bitboards::print(Bitboard bitboard)
 {
-    std::cout << "        " << bitboard << std::endl;
+    std::cout << "    bitboard: " << bitboard << std::endl;
     std::cout << "  +---+---+---+---+---+---+---+---+\n";
 
-    for (int rank = RANK_8; rank >= RANK_1; rank--)
+    for (Rank rank = RANK_8; rank >= RANK_1; rank--)
     {
         std::cout << rank+1 << " ";
-        for (int file = FILE_A; file < NUM_FILES; file++)
-        {
-            std::cout << ((bitboard & getSquareMask(Rank(rank), File(file))) ? "| X " : "|   ");
-        }
+        for (File file = FILE_A; file < NUM_FILES; file++)
+            std::cout << ((bitboard & getSquareMask(rank, file)) ? "| X " : "|   ");
 
         std::cout << "| \n  +---+---+---+---+---+---+---+---+" << std::endl;
     }
     
-    std::cout << "    a   b   c   d   e   f   g   h" << std::endl;
+    std::cout << "    a   b   c   d   e   f   g   h\n" << std::endl;
 }
 
 namespace {
 
-// Returns a bitmask for all squares that the given sliding piece attacks, counting up until
-// the board edge or a blocker from the given blockers.
-uint64_t slidingAttack(PieceType pieceType, int attackerSquare, uint64_t blockers)
-{
-    uint64_t attacks = 0;
-
-    Direction plus[]   = {NORTH, SOUTH, EAST, WEST};
-    Direction cross[]  = {NORTH_EAST, SOUTH_EAST, SOUTH_WEST, NORTH_WEST};
-
-    for (Direction dir : (pieceType == BISHOP ? cross : plus))
-    {
-        int square = attackerSquare;
-        while (shift(squareMasks[square], dir) && !(squareMasks[square] & blockers))
-            attacks |= squareMasks[square += dir];
-    }
-
-    return attacks;
-}
-
 // Precalculates all bishop and rook attacks and uses the fancy magic bitboard
 // technique to make a lookup with a board state to see where the sliding piece
 // attacks. For reference, see: https://www.chessprogramming.org/Magic_Bitboards
-void initMagics(PieceType pieceType, Magic magics[], uint64_t attackTable[])
+void initMagics(PieceType pt, Magic magics[], Bitboard attackTable[])
 {
-    uint64_t blockers[4096], reference[4096], edgeMask;
+    Bitboard blockers[4096], reference[4096], edgeMask;
     int epoch[4096] = {}, size = 0, count = 0;
 
-    for (int square = A1; square < NUM_SQUARES; square++)
+    for (Square square = A1; square < NUM_SQUARES; square++)
     {
         // Alias for the curent magic
         Magic& m = magics[square];
 
-        edgeMask = ((Rank1Mask | Rank8Mask) & ~getRankMask(square)) | ((FileAMask | FileHMask) & ~getFileMask(square));
+        edgeMask = ((Rank1Mask | Rank8Mask) & ~getRankMask(square)) |
+                   ((FileAMask | FileHMask) & ~getFileMask(square));
 
         // Init magic members
-        m.mask = slidingAttack(pieceType, square, 0) & ~edgeMask;
+        m.mask = slidingAttack(pt, square, 0) & ~edgeMask;
         m.shift = NUM_SQUARES - numBits(m.mask);
         m.attacks = (square == A1) ? attackTable : magics[square-1].attacks + size;
 
         // Carry-Rippler trick to enumerate all permutations of blockers that can
-        // block the piece. 
-        // https://www.chessprogramming.org/Traversing_Subsets_of_a_Set
-        uint64_t bitboard = 0;
+        // block the piece. https://www.chessprogramming.org/Traversing_Subsets_of_a_Set
+        Bitboard bitboard = 0;
         size = 0;
         do
         {
-            reference[size] = slidingAttack(pieceType, square, bitboard);
+            reference[size] = slidingAttack(pt, square, bitboard);
             blockers[size] = bitboard;
             bitboard = (bitboard - m.mask) & m.mask;
             size++;
@@ -134,11 +135,32 @@ void initMagics(PieceType pieceType, Magic magics[], uint64_t attackTable[])
                     epoch[index] = count;
                     m.attacks[index] = reference[i];
                 }
+
                 else if (m.attacks[index] != reference[i]) // magic number did not work
                     break;
             }   
         }
     }
+}
+
+// Returns a bitmask for all squares that the given sliding piece attacks, counting up until
+// the board edge or a blocker from the given blockers.
+Bitboard slidingAttack(PieceType pt, Square attackerSquare, Bitboard blockers)
+{
+    Bitboard attacks = 0;
+
+    Direction plus[]   = {NORTH, SOUTH, EAST, WEST};
+    Direction cross[]  = {NORTH_EAST, SOUTH_EAST, SOUTH_WEST, NORTH_WEST};
+
+    for (Direction dir : (pt == BISHOP ? cross : plus))
+    {
+        int square = attackerSquare;
+
+        while (shift(squareMasks[square], dir) && !(squareMasks[square] & blockers))
+            attacks |= squareMasks[square += dir];
+    }
+
+    return attacks;
 }
 
 } // anonymous namespace

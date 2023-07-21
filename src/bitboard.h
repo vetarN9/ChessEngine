@@ -8,105 +8,126 @@
 
 namespace ChessEngine {
 
-namespace Bitboard {
+namespace Bitboards {
 
 void init();
-void print(uint64_t bitBoard);
+void print(Bitboard bitBoard);
 
-} // namespace Bitboard
+} // namespace Bitboards
 
-constexpr uint64_t Rank1Mask = 0xFF;
-constexpr uint64_t Rank2Mask = Rank1Mask << (8 * 1);
-constexpr uint64_t Rank3Mask = Rank1Mask << (8 * 2);
-constexpr uint64_t Rank4Mask = Rank1Mask << (8 * 3);
-constexpr uint64_t Rank5Mask = Rank1Mask << (8 * 4);
-constexpr uint64_t Rank6Mask = Rank1Mask << (8 * 5);
-constexpr uint64_t Rank7Mask = Rank1Mask << (8 * 6);
-constexpr uint64_t Rank8Mask = Rank1Mask << (8 * 7);
+constexpr Bitboard Rank1Mask = 0xFF;
+constexpr Bitboard Rank2Mask = Rank1Mask << (8 * 1);
+constexpr Bitboard Rank3Mask = Rank1Mask << (8 * 2);
+constexpr Bitboard Rank4Mask = Rank1Mask << (8 * 3);
+constexpr Bitboard Rank5Mask = Rank1Mask << (8 * 4);
+constexpr Bitboard Rank6Mask = Rank1Mask << (8 * 5);
+constexpr Bitboard Rank7Mask = Rank1Mask << (8 * 6);
+constexpr Bitboard Rank8Mask = Rank1Mask << (8 * 7);
 
-constexpr uint64_t FileAMask = 0x0101010101010101;
-constexpr uint64_t FileBMask = FileAMask << 1;
-constexpr uint64_t FileCMask = FileAMask << 2;
-constexpr uint64_t FileDMask = FileAMask << 3;
-constexpr uint64_t FileEMask = FileAMask << 4;
-constexpr uint64_t FileFMask = FileAMask << 5;
-constexpr uint64_t FileGMask = FileAMask << 6;
-constexpr uint64_t FileHMask = FileAMask << 7;
+constexpr Bitboard FileAMask = 0x0101010101010101;
+constexpr Bitboard FileBMask = FileAMask << 1;
+constexpr Bitboard FileCMask = FileAMask << 2;
+constexpr Bitboard FileDMask = FileAMask << 3;
+constexpr Bitboard FileEMask = FileAMask << 4;
+constexpr Bitboard FileFMask = FileAMask << 5;
+constexpr Bitboard FileGMask = FileAMask << 6;
+constexpr Bitboard FileHMask = FileAMask << 7;
 
-constexpr uint64_t boardEdgeMask = Rank1Mask | Rank8Mask | FileAMask | FileHMask;
+constexpr Bitboard boardEdgeMask = Rank1Mask | Rank8Mask | FileAMask | FileHMask;
 
-extern uint64_t squareMasks[NUM_SQUARES];
-extern uint64_t pawnAttacks[NUM_COLORS][NUM_SQUARES];
-extern uint64_t pseudoAttacks[NUM_PIECE_TYPES][NUM_SQUARES];
+extern Bitboard squareMasks[NUM_SQUARES];
+extern Bitboard lineMask[NUM_SQUARES][NUM_SQUARES];
+extern Bitboard betweenMask[NUM_SQUARES][NUM_SQUARES];
+extern Bitboard pawnAttacks[NUM_COLORS][NUM_SQUARES];
+extern Bitboard pseudoAttacks[NUM_PIECE_TYPES][NUM_SQUARES];
 
 struct Magic 
 {
-    uint64_t* attacks;
-    uint64_t  mask;
-    uint64_t  magic;
+    Bitboard* attacks;
+    Bitboard  mask;
+    Bitboard  magic;
     uint32_t shift;
 
-    uint32_t index(uint64_t blockers) const
-    {
-        return ((blockers & mask) * magic) >> shift;
-    }
+    uint32_t index(Bitboard blockers) const { return ((blockers & mask) * magic) >> shift; }
 };
 
 extern Magic bishopMagics[NUM_SQUARES];
 extern Magic rookMagics[NUM_SQUARES];
 
-constexpr uint64_t getFileMask(int square) 
+inline Bitboard getSquareMask(Square square)
+{
+    return squareMasks[square];
+}
+
+inline Bitboard  operator& (Bitboard  bitboard, Square square) { return bitboard &  getSquareMask(square); }
+inline Bitboard  operator| (Bitboard  bitboard, Square square) { return bitboard |  getSquareMask(square); }
+inline Bitboard  operator^ (Bitboard  bitboard, Square square) { return bitboard ^  getSquareMask(square); }
+inline Bitboard& operator|=(Bitboard& bitboard, Square square) { return bitboard |= getSquareMask(square); }
+inline Bitboard& operator^=(Bitboard& bitboard, Square square) { return bitboard ^= getSquareMask(square); }
+
+constexpr Bitboard getRankMask(Square square) 
+{
+    return Rank1Mask << (8 * Rank(square >> 3));
+}
+
+constexpr Bitboard getRankMask(Rank rank) 
+{
+    return Rank1Mask << (8 * rank);
+}
+
+constexpr Bitboard getFileMask(Square square) 
 {
     return FileAMask << File(square & 0b111);
 }
 
-constexpr bool withinBoard(int square)
+constexpr bool moreThanOne(Bitboard bitboard)
 {
-    return square >= A1 && square < NUM_SQUARES;
+    return bitboard & (bitboard - 1);
 }
 
-constexpr bool withinBoard(int square, int dir)
+constexpr bool withinBoard(Square square)
 {
-    switch (dir)
-    {
-    case EAST: return squareMasks[square] & ~FILE_H;
-    case WEST: return squareMasks[square] & ~FILE_A;
-    }
-
-    int destination = square + dir;
-    return destination >= A1 && destination < NUM_SQUARES;
+    return square >= A1 && square <= H8;
 }
 
-constexpr uint64_t shift(uint64_t bitBoard, Direction dir)
+constexpr bool withinBoard(Square square, Direction dir)
 {
     switch (dir)
     {
-    case NORTH: return (bitBoard & ~Rank8Mask) <<  NORTH;
-    case SOUTH: return (bitBoard & ~Rank1Mask) >> -SOUTH;
-    case EAST:  return (bitBoard & ~FileHMask) <<  EAST;
-    case WEST:  return (bitBoard & ~FileAMask) >> -WEST;
-
-    case NORTH_EAST: return (bitBoard & ~FileHMask) <<  NORTH_EAST;
-    case NORTH_WEST: return (bitBoard & ~FileAMask) <<  NORTH_WEST;
-    case SOUTH_EAST: return (bitBoard & ~FileHMask) >> -SOUTH_EAST;
-    case SOUTH_WEST: return (bitBoard & ~FileAMask) >> -SOUTH_WEST;
+        case EAST: return squareMasks[square] & ~FILE_H;
+        case WEST: return squareMasks[square] & ~FILE_A;
+        default:   break;
     }
 
-    return 0;
+    Square dest = square + dir;
+    return dest >= A1 && dest <= H8;
 }
 
-constexpr uint64_t pawnAttackMask(uint64_t pawn, Color color)
+constexpr Bitboard shift(Bitboard bitBoard, Direction dir)
+{
+    switch (dir)
+    {
+        case NORTH: return (bitBoard & ~Rank8Mask) <<  NORTH;
+        case SOUTH: return (bitBoard & ~Rank1Mask) >> -SOUTH;
+        case EAST:  return (bitBoard & ~FileHMask) <<  EAST;
+        case WEST:  return (bitBoard & ~FileAMask) >> -WEST;
+
+        case NORTH_EAST: return (bitBoard & ~FileHMask) <<  NORTH_EAST;
+        case NORTH_WEST: return (bitBoard & ~FileAMask) <<  NORTH_WEST;
+        case SOUTH_EAST: return (bitBoard & ~FileHMask) >> -SOUTH_EAST;
+        case SOUTH_WEST: return (bitBoard & ~FileAMask) >> -SOUTH_WEST;
+
+        default: return 0;
+    }
+}
+
+constexpr Bitboard pawnAttackMask(Bitboard pawn, Color color)
 {
     return (color == WHITE) ? shift(pawn, NORTH_WEST) | shift(pawn, NORTH_EAST)
                             : shift(pawn, SOUTH_WEST) | shift(pawn, SOUTH_EAST);
 }
 
-/* inline uint64_t pawnAttackMask(Square square, Color color)
-{
-  return pawnAttacks[color][square];
-} */
-
-constexpr uint64_t kingAttackMask(uint64_t king)
+constexpr Bitboard kingAttackMask(Bitboard king)
 {
     return shift(king, NORTH) | shift(king, NORTH_EAST) |
            shift(king,  EAST) | shift(king, SOUTH_EAST) |
@@ -114,7 +135,7 @@ constexpr uint64_t kingAttackMask(uint64_t king)
            shift(king,  WEST) | shift(king, NORTH_WEST);
 }
 
-constexpr uint64_t knightAttackMask(uint64_t knight)
+constexpr Bitboard knightAttackMask(Bitboard knight)
 {
     return shift(shift(knight, NORTH), NORTH_EAST) | shift(shift(knight, NORTH), NORTH_WEST) |
            shift(shift(knight, SOUTH), SOUTH_EAST) | shift(shift(knight, SOUTH), SOUTH_WEST) |
@@ -122,38 +143,61 @@ constexpr uint64_t knightAttackMask(uint64_t knight)
            shift(shift(knight, WEST),  NORTH_WEST) | shift(shift(knight,  WEST), SOUTH_WEST);
 }
 
-inline uint64_t getAttackMask(PieceType pieceType, int square, uint64_t blockers)
+inline Bitboard pawnAttackMask(Color color, Square square)
 {
-
-  assert(pieceType != PAWN && withinBoard(square));
-
-  switch (pieceType)
-  {
-  case BISHOP: return bishopMagics[square].attacks[bishopMagics[square].index(blockers)];
-  case ROOK  : return   rookMagics[square].attacks[  rookMagics[square].index(blockers)];
-  case QUEEN : return getAttackMask(BISHOP, square, blockers) | getAttackMask(ROOK, square, blockers);
-  default    : return pseudoAttacks[pieceType][square];
-  }
+    return pawnAttacks[color][square];
 }
 
-
-
-inline uint64_t getSquareMask(Square square)
+inline Bitboard attackMask(PieceType pt, Square square)
 {
-    return squareMasks[square];
+    assert(pt != PAWN && withinBoard(square));
+    return pseudoAttacks[pt][square];
 }
 
-inline uint64_t getSquareMask(Rank rank, File file)
+inline Bitboard attackMask(PieceType pt, Square square, Bitboard blockers)
+{
+    assert(pt != PAWN && withinBoard(square));
+
+    switch (pt)
+    {
+        case BISHOP: return bishopMagics[square].attacks[bishopMagics[square].index(blockers)];
+        case ROOK  : return   rookMagics[square].attacks[  rookMagics[square].index(blockers)];
+        case QUEEN : return attackMask(BISHOP, square, blockers) | attackMask(ROOK, square, blockers);
+        default    : return pseudoAttacks[pt][square];
+    }
+}
+
+inline Bitboard getSquareMask(Rank rank, File file)
 {
     return squareMasks[(rank * 8) + file];
 }
 
-inline uint64_t popBit(uint64_t bitboard, int square)
+// Gives the straight or diagonal line intersecting both given squares.
+// If no such line exist, 0 is returned
+inline Bitboard getLineMask(Square square, Square square2)
+{
+    return lineMask[square][square2];
+}
+
+inline bool isAligned(Square square, Square square2, Square square3)
+{
+    return getLineMask(square, square2) & square3;
+}
+
+
+// Includes the target square but not the source
+inline Bitboard getBetweenMask(Square source, Square target)
+{
+    assert(withinBoard(source) && withinBoard(target));
+    return betweenMask[source][target];
+}
+
+inline Bitboard popBit(Bitboard bitboard, Square square)
 {
     return (bitboard & (1ULL << square)) ? bitboard ^= (1ULL << square) : 0;
 }
 
-inline int numBits(uint64_t bitboard)
+inline int numBits(Bitboard bitboard)
 {
     int numBits = 0;
 
@@ -166,7 +210,7 @@ inline int numBits(uint64_t bitboard)
     return numBits;
 }
 
-inline Square lsbSquare(uint64_t bitboard)
+inline Square lsbSquare(Bitboard bitboard)
 {
     assert(bitboard);
     return Square(numBits((bitboard & -bitboard) - 1));
@@ -184,22 +228,45 @@ inline uint32_t random32()
     return random;
 }
 
-inline uint64_t random64()
+inline Bitboard random64()
 {
-    return ((uint64_t)((random32()) & 0xFFFF) <<  0) | 
-           ((uint64_t)((random32()) & 0xFFFF) << 16) |
-           ((uint64_t)((random32()) & 0xFFFF) << 32) | 
-           ((uint64_t)((random32()) & 0xFFFF) << 48);
+    return ((Bitboard)((random32()) & 0xFFFF) << 0)  |
+           ((Bitboard)((random32()) & 0xFFFF) << 16) |
+           ((Bitboard)((random32()) & 0xFFFF) << 32) |
+           ((Bitboard)((random32()) & 0xFFFF) << 48);
 }
 
-inline uint64_t random64FewBits() 
+inline Bitboard random64FewBits() 
 {
-  return random64() & random64() & random64();
+    return random64() & random64() & random64();
 }
 
-constexpr uint64_t getRankMask(int square) 
+
+#if defined(__GNUC__)  // GCC
+
+inline Square lsb(Bitboard bitboard)
 {
-    return Rank1Mask << (8 * Rank(square >> 3));
+    assert(bitboard);
+    return Square(__builtin_ctzll(bitboard));
+}
+
+inline Square msb(Bitboard bitboard)
+{
+    assert(bitboard);
+    return Square(63 ^ __builtin_clzll(bitboard));
+}
+
+#else // TODO: add windows support
+
+#error "Compiler not supported."
+
+#endif
+
+inline Square popFirstSquare(Bitboard& bitboard)
+{
+    Square square = lsb(bitboard);
+    bitboard &= bitboard - 1;
+    return square;
 }
 
 } // namespace ChessEngine
