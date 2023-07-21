@@ -1,11 +1,12 @@
 .DELETE_ON_ERROR:
 
+
+
 TARGET		:= chessEngine
 
 COMPILER	:= g++
-FLAGS		:= -Wall -std=c++17 -MMD
+FLAGS		:= -Wall -std=c++17 -MMD -g
 LINKS		:=
-
 
 # Directories, Objects, and Binary 
 SRC_DIR		:= src
@@ -16,14 +17,18 @@ SRC_EXT		:= cpp
 OBJ_EXT		:= o
 DEP_EXT		:= d
 
-#-----------------------------------
-#	 DO NOT EDIT BELOW THIS LINE
-#-----------------------------------
+#-------------------------
+#	 DON'T EDIT BELOW
+#-------------------------
 
 BIN  := $(TARGET_DIR)/$(TARGET)
 SRCS := $(wildcard $(SRC_DIR)/*.$(SRC_EXT))
 OBJS := $(SRCS:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_DIR)/%.$(OBJ_EXT))
 DEPS := $(OBJS:.$(OBJ_EXT)=.$(DEP_EXT))
+
+ifdef RELEASE
+    FLAGS += -DNDEBUG
+endif
 
 all: createDirs $(BIN)
 
