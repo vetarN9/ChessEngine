@@ -8,103 +8,92 @@
 
 namespace ChessEngine {
 
-class Position 
-{
+class Position {
 public:
-    static void init();
+    static void Init();
 
     Position() = default;
     Position(const Position&) = delete;
 
-    Position& setPosFromFEN(const std::string& fen);
+    // Get/set FEN string
+    Position& Set(const std::string& fen);
+    std::string FEN() const;
 
-    uint64_t getPieceMask(PieceType pieceType = ALL_PIECES) const;
-    uint64_t getPieceMask(PieceType pieceType, Color color) const;
-    uint64_t getColorMask(Color color) const;
+    // Position pieces 
+    inline Bitboard Pieces(PieceType pt, Color color)   const { return Pieces(pt) & Pieces(color); }
+    inline Bitboard Pieces(PieceType pt, PieceType pt2) const { return Pieces(pt) | Pieces(pt2); }
+    inline Bitboard Pieces(PieceType pt = ALL_PIECES)   const { return typeBoard[pt]; }
+    inline Bitboard Pieces(Color color)                 const { return colorBoard[color]; }
+    inline Piece PieceOn(Square square)                 const { return pieceOnSquare[square]; }
+    inline int NumPieces(PieceType pt, Color color)     const { return numPieces[getPiece(pt, color)]; }
+    inline int NumPieces(PieceType pt)                  const { return NumPieces(pt, WHITE) + NumPieces(pt, BLACK); }
+    Square KingSquare(Color color)                      const;
 
-    Piece pieceOn(Square square) const;
+    // Checking
+    inline Bitboard Checkers() const { return checkersBoard; }
+    inline Bitboard CheckSquares(PieceType pt) const { return checkSquares[pt]; }
+    inline Bitboard KingBlockers(Color kingColor) const { return kingBlockers[kingColor]; }
+    inline Bitboard Pinned(Color color) const { return pinned[color]; }
+    inline Bitboard Discovery(Color color) const { return discovery[color]; }
+    inline Bitboard Pinners(Color color) const { return pinners[color]; }
 
-    void placePiece(Piece piece, Square square);
-    void movePiece(Square from, Square to);
-    void removePiece(Square square);
+    //
+    Bitboard AttacksTo(Square square, Bitboard occupancy) const;
+    inline Bitboard AttacksTo(Square square) const { return AttacksTo(square, Pieces()); }
+    inline bool SquareIsAttacked(Square square) const { return AttacksTo(square) & Pieces(); }
+    inline bool SquareIsAttacked(Square square, Color attacker) const { return AttacksTo(square) & Pieces(attacker); }
+
+    // Getters of member variables
+    inline Color SideToMove() const       { return sideToMove; }
+    inline uint8_t CastlingRights() const { return castlingRights; }
+    inline Piece CapturedPiece() const    { return capturedPiece; }
+    inline Square EnpassantSquare() const { return enpassantSquare; }
+
+    // Doing and undoing moves
     
-    void print();
-    void test();
+    void Print();
 
 private:
-    Piece pieceBoard[NUM_SQUARES];
-    uint64_t typeBoard[NUM_PIECE_TYPES];
-    uint64_t colorBoard[NUM_COLORS];
-    int numPieces[NUM_PIECE_TYPES * NUM_COLORS];
+    // Piece manipulation
+    void PlacePiece(Piece piece, Square square);
+    void MovePiece(Square from, Square to);
+    void RemovePiece(Square square);
+
+    Bitboard SliderBlockers(Color attacker, Square target, Bitboard& pinners) const;
+
+    // Helpers for initialization
+    void ParsePiecePlacement(std::istringstream& ss);
+    void ParseActiveColor(std::istringstream& ss);
+    void ParseCastling(std::istringstream& ss);
+    void ParseEnpassantSquare(std::istringstream& ss);
+    void ParseMoveCounters(std::istringstream& ss);
+    void SetCheckingData();
+
+    Piece pieceOnSquare[NUM_SQUARES];
+    Bitboard typeBoard[NUM_PIECE_TYPES];
+    Bitboard colorBoard[NUM_COLORS];
+    int numPieces[NUM_PIECES];
+
     int ply;
     Color sideToMove;
     Square enpassantSquare;
-    int fiftyMoveRule;
-    uint8_t castleRights;
+    int fiftyMoveCounter;
+    uint8_t castlingRights;
+
+    Bitboard checkersBoard;
+    Bitboard kingBlockers[NUM_COLORS];
+    Bitboard pinned[NUM_COLORS];
+    Bitboard pinners[NUM_COLORS];
+    Bitboard discovery[NUM_COLORS];
+    Bitboard checkSquares[NUM_PIECE_TYPES];
+    Piece    capturedPiece;
+    int      repetition;
 };
 
-inline void Position::test()
+inline Square Position::KingSquare(Color color) const
 {
-    std::cout << sideToMove << std::endl;
-}
-
-inline uint64_t Position::getPieceMask(PieceType pieceType /*=ALL_PIECES */) const
-{
-    return typeBoard[pieceType];
-}
-
-inline uint64_t Position::getPieceMask(PieceType pieceType, Color color) const
-{
-    return getPieceMask(pieceType) & getColorMask(color);
-}
-
-inline uint64_t Position::getColorMask(Color color) const
-{
-    return colorBoard[color];
-}
-
-inline Piece Position::pieceOn(Square square) const 
-{
-    return pieceBoard[square];
-}
-
-inline void Position::placePiece(Piece piece, Square square)
-{
-    uint64_t squareMask = getSquareMask(square);
-    pieceBoard[square] = piece;
-
-    typeBoard[ALL_PIECES]       |= squareMask;
-    typeBoard[getType(piece)]   |= squareMask;
-    colorBoard[getColor(piece)] |= squareMask;
-
-    numPieces[piece]++;
-    numPieces[getPiece(ALL_PIECES, getColor(piece))]++;
-}
-
-inline void Position::movePiece(Square from, Square to)
-{
-    uint64_t moveMask = getSquareMask(from) | getSquareMask(to);
-    Piece piece = pieceBoard[from];
-    pieceBoard[from] = EMPTY;
-    pieceBoard[to] = piece;
-
-    typeBoard[ALL_PIECES]       ^= moveMask;
-    typeBoard[getType(piece)]   ^= moveMask;
-    colorBoard[getColor(piece)] ^= moveMask;
-}
-
-inline void Position::removePiece(Square square)
-{
-    uint64_t squareMask = getSquareMask(square);
-    Piece piece = pieceBoard[square];
-    pieceBoard[square] = EMPTY;
-
-    typeBoard[ALL_PIECES]       ^= squareMask;
-    typeBoard[getType(piece)]   ^= squareMask;
-    colorBoard[getColor(piece)] ^= squareMask;
-
-    numPieces[piece]--;
-    numPieces[getPiece(ALL_PIECES, getColor(piece))]--;
+    assert(Pieces(KING, color) && "Position must include one king of both sides");
+    return lsb(Pieces(KING, color));
 }
 
 } // namespace ChessEngine
