@@ -10,7 +10,7 @@ namespace ChessEngine {
 
 namespace {
 
-constexpr std::string_view PieceToChar(" PNBRQK  pnbrqk");
+constexpr std::string_view PieceToAscii(" PNBRQK  pnbrqk");
 
 } // anonymous namespace
 
@@ -88,7 +88,7 @@ void Position::ParsePiecePlacement(std::istringstream& ss)
         
         else
         {
-            PlacePiece(Piece(PieceToChar.find(token)), Square(square));
+            PlacePiece(Piece(PieceToAscii.find(token)), Square(square));
             square++;
         }
     }
@@ -183,14 +183,14 @@ Bitboard Position::SliderBlockers(Color blocker, Square target, Bitboard& pinner
 
     while (sliders)
     {
-        Square slider = popFirstSquare(sliders);
+        Square slider = popSquare(sliders);
         Bitboard between = getBetweenMask(target, slider) & occupancy;
 
         if (between && !moreThanOne(between))
         {
             if (between & Pieces(blocker))
                 pinners |= slider;
-                
+
             blockers |= between;
         }
     }
@@ -215,7 +215,7 @@ std::string Position::FEN() const
                 oss << numEmptySpaces;
             
             if (file < NUM_FILES)
-                oss << PieceToChar[PieceOn(createSquare(File(file), Rank(rank)))];
+                oss << PieceToAscii[PieceOn(createSquare(File(file), Rank(rank)))];
         }
 
         if (rank > RANK_1)
@@ -305,15 +305,15 @@ void Position::RemovePiece(Square square)
 
 void Position::Print()
 {
-    std::map<Piece, std::string> pieceToChar = {
-        {WHITE_PAWN,     "♟"}, {BLACK_PAWN,     "♙"},
-        {WHITE_KNIGHT,   "♞"}, {BLACK_KNIGHT,   "♘"},
-        {WHITE_BISHOP,   "♝"}, {BLACK_BISHOP,   "♗"},
-        {WHITE_ROOK,     "♜"}, {BLACK_ROOK,     "♖"},
-        {WHITE_QUEEN,    "♛"}, {BLACK_QUEEN,    "♕"},
-        {WHITE_KING,     "♚"}, {BLACK_KING,     "♔"},
-        {EMPTY,          " "}
-    };
+    #ifdef _WIN64
+
+    constexpr std::string_view pieceToChar = PieceToAscii;
+
+    #else
+
+    constexpr const char* pieceToChar[] = {" ", u8"♟", u8"♞", u8"♝", u8"♜", u8"♛", u8"♚", " ", " ", u8"♙", u8"♘", u8"♗", u8"♖", u8"♕", u8"♔"};
+    
+    #endif
 
     std::cout << "  +---+---+---+---+---+---+---+---+" << std::endl;
 

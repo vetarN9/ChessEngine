@@ -244,7 +244,8 @@ inline Bitboard random64FewBits()
 
 #if defined(__GNUC__)  // GCC
 
-inline Square lsb(Bitboard bitboard)
+// Returns the lsb square from the given bitboard
+inline Square getSquare(Bitboard bitboard)
 {
     assert(bitboard);
     return Square(__builtin_ctzll(bitboard));
@@ -258,13 +259,23 @@ inline Square msb(Bitboard bitboard)
 
 #else // TODO: add windows support
 
+// Returns the lsb square from the given bitboard
+inline Square getSquare(Bitboard bitboard)
+{
+    assert(bitboard);
+    unsigned long square;
+    _BitScanForward64(&square, bitboard);
+    return (Square)square;
+}
+
 #error "Compiler not supported."
 
 #endif
 
-inline Square popFirstSquare(Bitboard& bitboard)
+// pops the lsb square from the given bitboard
+inline Square popSquare(Bitboard& bitboard)
 {
-    Square square = lsb(bitboard);
+    Square square = getSquare(bitboard);
     bitboard &= bitboard - 1;
     return square;
 }
