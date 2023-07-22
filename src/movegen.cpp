@@ -5,9 +5,11 @@ namespace ChessEngine {
 
 namespace {
 
-void generateQuietPawnMoves(const Position& pos, MoveList& moveList);
-void generatePawnPromotionMoves(const Position& pos, MoveList& moveList);
-void generatePawnCaptures(const Position& pos, MoveList& moveList);
+void generateQuietPawnMoves(const Position& pos, MoveList& moveList, Bitboard targets);
+void generatePawnPromotionMoves(const Position& pos, MoveList& moveList, Bitboard targets);
+void generatePawnCaptures(const Position& pos, MoveList& moveList, Bitboard targets);
+
+void generatePieceMoves(PieceType pt, const Position& pos, MoveList& moveList, Bitboard targets);
 
 inline void addMove(MoveList& moveList, Move move);
 inline void addPromotionMove(MoveList& moveList, Square from, Square to);
@@ -17,15 +19,44 @@ inline void addPromotionMove(MoveList& moveList, Square from, Square to);
 
 void generateMoves(const Position& pos, MoveList& moveList)
 {
-    generateQuietPawnMoves(pos, moveList);
-    generatePawnPromotionMoves(pos, moveList);
-    generatePawnCaptures(pos, moveList);
+    Color us = pos.SideToMove();
+    Color them = ~us;
+
+    Square kingSq = pos.KingSquare(us);
+    
+    Bitboard checkers = pos.Checkers();
+
+
+    // Only king moves are legal if in double check
+    if (moreThanOne(checkers))
+    {
+        Bitboard kingMoves = kingAttackMask(getSquareMask(kingSq)) & ~pos.Pieces(us);
+
+        while (kingMoves)
+            addMove(moveList, makeMove(kingSq, popSquare(kingMoves)));
+        
+        return;
+    }
+
+    Bitboard targets = (checkers ? getBetweenMask(kingSq, getSquare(checkers)) : ~pos.Pieces(us));
+
+    generateQuietPawnMoves(pos, moveList, targets);
+    generatePawnPromotionMoves(pos, moveList,targets);
+    generatePawnCaptures(pos, moveList, targets);
+
+    for (PieceType pt : {KNIGHT, BISHOP, ROOK, QUEEN})
+        generatePieceMoves(pt, pos, moveList, targets);
+    
+    Bitboard kingMoves = kingAttackMask(getSquareMask(kingSq)) & ~pos.Pieces(us);
+
+    while (kingMoves)
+        addMove(moveList, makeMove(kingSq, popSquare(kingMoves)));
 }
 
 
 namespace {
 
-void generateQuietPawnMoves(const Position& pos, MoveList& moveList)
+void generateQuietPawnMoves(const Position& pos, MoveList& moveList, Bitboard targets)
 {
     Color us = pos.SideToMove();
 
@@ -35,25 +66,28 @@ void generateQuietPawnMoves(const Position& pos, MoveList& moveList)
     Bitboard pushers        = pos.Pieces(PAWN, us) & ~promotionRank;
     Direction up            = getPawnDir(us);
 
+    targets &= emptySquares;
+
     Bitboard singlePush = shift(pushers, up)  & emptySquares;
-    Bitboard doublePush = shift(singlePush & doublePushRank, up) & emptySquares;
+    Bitboard doublePush = shift(singlePush & doublePushRank, up) & targets;
+    singlePush &= targets;
 
     while (singlePush)
     {
-        Square to = popFirstSquare(singlePush);
+        Square to = popSquare(singlePush);
         Square from = to - up;
-        addMove(moveList, makeQuietMove(from, to));
+        addMove(moveList, makeMove(from, to));
     }
 
     while (doublePush)
     {
-        Square to = popFirstSquare(doublePush);
+        Square to = popSquare(doublePush);
         Square from = to - up - up;
-        addMove(moveList, makeQuietMove(from, to));
+        addMove(moveList, makeMove(from, to));
     }
 }
 
-void generatePawnPromotionMoves(const Position& pos, MoveList& moveList)
+void generatePawnPromotionMoves(const Position& pos, MoveList& moveList, Bitboard targets)
 {
     Color us = pos.SideToMove();
     Color them = ~us;
@@ -64,40 +98,40 @@ void generatePawnPromotionMoves(const Position& pos, MoveList& moveList)
     if (!promoters)
         return;
 
-    Bitboard captures = pos.Pieces(them);
+    Bitboard captures = pos.Pieces(them) & targets;
     Bitboard emptySquares  = ~pos.Pieces();
 
     Direction up = getPawnDir(us);
     Direction upLeft  = (us == WHITE ? NORTH_WEST : SOUTH_EAST);
     Direction upRight = (us == WHITE ? NORTH_EAST : SOUTH_WEST);
 
-    Bitboard pushers       = shift(promoters, up)  & emptySquares;
+    Bitboard pushers       = shift(promoters, up)  & emptySquares & targets;
     Bitboard capturesLeft  = shift(promoters, upLeft)  & captures;
     Bitboard capturesRight = shift(promoters, upRight) & captures;
 
     while (pushers)
     {
-        Square to = popFirstSquare(pushers);
+        Square to = popSquare(pushers);
         Square from = to - up;
         addPromotionMove(moveList, from, to);
     }
 
     while (capturesLeft)
     {
-        Square to = popFirstSquare(capturesLeft);
+        Square to = popSquare(capturesLeft);
         Square from = to - upLeft;
         addPromotionMove(moveList, from, to);
     }
 
     while (capturesRight)
     {
-        Square to = popFirstSquare(capturesRight);
+        Square to = popSquare(capturesRight);
         Square from = to - upRight;
         addPromotionMove(moveList, from, to);
     }
 }
 
-void generatePawnCaptures(const Position& pos, MoveList& moveList)
+void generatePawnCaptures(const Position& pos, MoveList& moveList, Bitboard targets)
 {
     Color us = pos.SideToMove();
     Color them = ~us;
@@ -111,23 +145,23 @@ void generatePawnCaptures(const Position& pos, MoveList& moveList)
     Direction upLeft  = (us == WHITE ? NORTH_WEST : SOUTH_EAST);
     Direction upRight = (us == WHITE ? NORTH_EAST : SOUTH_WEST);
 
-    Bitboard captures = pos.Pieces(them);
+    Bitboard captures = pos.Pieces(them) & targets;
     Bitboard capturesLeft  = shift(pawns, upLeft)  & captures;
     Bitboard capturesRight = shift(pawns, upRight) & captures;
 
     // normal captures
     while (capturesLeft)
     {
-        Square target = popFirstSquare(capturesLeft);
+        Square target = popSquare(capturesLeft);
         Square from = target - upLeft;
-        addMove(moveList, makeQuietMove(from, target));
+        addMove(moveList, makeMove(from, target));
     }
     
     while (capturesRight)
     {
-        Square target = popFirstSquare(capturesRight);
+        Square target = popSquare(capturesRight);
         Square from = target - upRight;
-        addMove(moveList, makeQuietMove(from, target));
+        addMove(moveList, makeMove(from, target));
     }
 
     // en passant captures
@@ -136,12 +170,30 @@ void generatePawnCaptures(const Position& pos, MoveList& moveList)
     if (epSq == NO_SQUARE)
         return;
 
+    // Cannot en passant if in check and epSq doesn't resolve the check
+    if (!(getSquareMask(epSq) & targets))
+        return;
+    
     Bitboard epAttackers = pawnAttackMask(them, epSq) & pawns;
 
     while (epAttackers)
+        addMove(moveList, makeMoveWithFlags(popSquare(epAttackers), epSq, EN_PASSANT));
+}
+
+void generatePieceMoves(PieceType pt, const Position& pos, MoveList& moveList, Bitboard targets)
+{
+    Color us = pos.SideToMove();
+
+    Bitboard pieces = pos.Pieces(pt, us);
+    Bitboard blockers = pos.Pieces();
+
+    while (pieces)
     {
-        Square from = popFirstSquare(epAttackers);
-        addMove(moveList, makeMove(from, epSq, EN_PASSANT));
+        Square from = popSquare(pieces);
+        Bitboard attacks = attackMask(pt, from, blockers) & targets;
+
+        while (attacks)
+            addMove(moveList, makeMove(from, popSquare(attacks)));
     }
 }
 
@@ -153,10 +205,10 @@ inline void addMove(MoveList& moveList, Move move)
 
 inline void addPromotionMove(MoveList& moveList, Square from, Square to)
 {
-    addMove(moveList, makeMove(from, to, PROMOTION, KNIGHT));
-    addMove(moveList, makeMove(from, to, PROMOTION, BISHOP));
-    addMove(moveList, makeMove(from, to, PROMOTION, ROOK));
-    addMove(moveList, makeMove(from, to, PROMOTION, QUEEN));
+    addMove(moveList, makeMoveWithFlags(from, to, PROMOTION, KNIGHT));
+    addMove(moveList, makeMoveWithFlags(from, to, PROMOTION, BISHOP));
+    addMove(moveList, makeMoveWithFlags(from, to, PROMOTION, ROOK));
+    addMove(moveList, makeMoveWithFlags(from, to, PROMOTION, QUEEN));
 }
 
 } // anonymous namespace

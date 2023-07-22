@@ -18,6 +18,11 @@ struct MoveList
     int count = 0;
 };
 
+enum GenType {
+  EVASIONS,
+  NON_EVASIONS,
+};
+
 void generateMoves(const Position& pos, MoveList& moveList);
 
 } // namespace ChessEngine
