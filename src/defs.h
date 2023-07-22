@@ -210,12 +210,12 @@ constexpr PieceType getPromotionType(Move move)
     return PieceType(((move >> 14) & 3) + KNIGHT);
 }
 
-constexpr Move makeQuietMove(Square from, Square to)
+constexpr Move makeMove(Square from, Square to)
 {
     return Move((to << 6) + from);
 }
 
-constexpr Move makeMove(Square from, Square to, MoveType mt, PieceType promotionPt = KNIGHT)
+constexpr Move makeMoveWithFlags(Square from, Square to, MoveType mt, PieceType promotionPt = KNIGHT)
 {
     return Move(((promotionPt - KNIGHT) << 14) + (mt << 12) + (to << 6) + from);
 }

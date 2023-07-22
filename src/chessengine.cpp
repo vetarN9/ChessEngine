@@ -28,8 +28,8 @@ int main(int argc, char* argv[])
 
     pos.Set(startPosFEN);
     //pos.Set("8/5k1p/1p1pRpN1/pP1q4/P1P3Qp/5NbP/rrr1P1K1/B7 w Kq a6 0 49");
-    //pos.Set("4r3/8/8/qk6/5p2/6p1/PPPPPPPP/RNBQKBNR w Kq - 0 49");
-    //pos.Set("8/8/kn4nn/P2PpPPP/6P1/8/6P1/RNBQKBNR w KQkq e6 0 1");
+    //pos.Set("k7/8/3P4/2K4q/6P1/8/PPPPP1PP/6b1 w Kq - 0 49");
+    pos.Set("1Bb3BN/R2Pk2r/1Q5B/4q2R/2bN4/4Q1BK/1p6/1bq1R1rb w - - 0 1");
     pos.Print();
     //Bitboards::print(pos.Checkers());
     MoveList m;
