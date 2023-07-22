@@ -257,7 +257,9 @@ inline Square msb(Bitboard bitboard)
     return Square(63 ^ __builtin_clzll(bitboard));
 }
 
-#else // TODO: add windows support
+#elif defined(_MSC_VER)
+
+#ifdef _WIN64
 
 // Returns the lsb square from the given bitboard
 inline Square getSquare(Bitboard bitboard)
@@ -267,6 +269,10 @@ inline Square getSquare(Bitboard bitboard)
     _BitScanForward64(&square, bitboard);
     return (Square)square;
 }
+
+#endif
+
+#else
 
 #error "Compiler not supported."
 
