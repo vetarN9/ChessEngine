@@ -11,7 +11,7 @@ namespace ChessEngine {
 namespace Bitboards {
 
 void init();
-void print(Bitboard bitBoard);
+void print(Bitboard bitboard);
 
 } // namespace Bitboards
 
@@ -54,11 +54,9 @@ struct Magic
 extern Magic bishopMagics[NUM_SQUARES];
 extern Magic rookMagics[NUM_SQUARES];
 
-inline Bitboard getSquareMask(Square square)
-{
-    return squareMasks[square];
-}
+inline Bitboard getSquareMask(Square square) { return squareMasks[square]; }
 
+//Operators for modifying a bitboard with a square
 inline Bitboard  operator& (Bitboard  bitboard, Square square) { return bitboard &  getSquareMask(square); }
 inline Bitboard  operator| (Bitboard  bitboard, Square square) { return bitboard |  getSquareMask(square); }
 inline Bitboard  operator^ (Bitboard  bitboard, Square square) { return bitboard ^  getSquareMask(square); }
@@ -103,19 +101,19 @@ constexpr bool withinBoard(Square square, Direction dir)
     return dest >= A1 && dest <= H8;
 }
 
-constexpr Bitboard shift(Bitboard bitBoard, Direction dir)
+constexpr Bitboard shift(Bitboard bitboard, Direction dir)
 {
     switch (dir)
     {
-        case NORTH: return (bitBoard & ~Rank8Mask) <<  NORTH;
-        case SOUTH: return (bitBoard & ~Rank1Mask) >> -SOUTH;
-        case EAST:  return (bitBoard & ~FileHMask) <<  EAST;
-        case WEST:  return (bitBoard & ~FileAMask) >> -WEST;
+        case NORTH: return (bitboard & ~Rank8Mask) <<  NORTH;
+        case SOUTH: return (bitboard & ~Rank1Mask) >> -SOUTH;
+        case EAST:  return (bitboard & ~FileHMask) <<  EAST;
+        case WEST:  return (bitboard & ~FileAMask) >> -WEST;
 
-        case NORTH_EAST: return (bitBoard & ~FileHMask) <<  NORTH_EAST;
-        case NORTH_WEST: return (bitBoard & ~FileAMask) <<  NORTH_WEST;
-        case SOUTH_EAST: return (bitBoard & ~FileHMask) >> -SOUTH_EAST;
-        case SOUTH_WEST: return (bitBoard & ~FileAMask) >> -SOUTH_WEST;
+        case NORTH_EAST: return (bitboard & ~FileHMask) <<  NORTH_EAST;
+        case NORTH_WEST: return (bitboard & ~FileAMask) <<  NORTH_WEST;
+        case SOUTH_EAST: return (bitboard & ~FileHMask) >> -SOUTH_EAST;
+        case SOUTH_WEST: return (bitboard & ~FileAMask) >> -SOUTH_WEST;
 
         default: return 0;
     }
@@ -179,6 +177,7 @@ inline Bitboard getLineMask(Square square, Square square2)
     return lineMask[square][square2];
 }
 
+// Checks if the three given squares are on the same straight or diagonal line
 inline bool isAligned(Square square, Square square2, Square square3)
 {
     return getLineMask(square, square2) & square3;
@@ -247,13 +246,13 @@ inline Bitboard random64FewBits()
 // Returns the lsb square from the given bitboard
 inline Square getSquare(Bitboard bitboard)
 {
-    assert(bitboard);
+    assert(bitboard != 0);
     return Square(__builtin_ctzll(bitboard));
 }
 
 inline Square msb(Bitboard bitboard)
 {
-    assert(bitboard);
+    assert(bitboard != 0);
     return Square(63 ^ __builtin_clzll(bitboard));
 }
 

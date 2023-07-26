@@ -14,7 +14,7 @@ Bitboard pseudoAttacks[NUM_PIECE_TYPES][NUM_SQUARES];
 Magic bishopMagics[NUM_SQUARES];
 Magic rookMagics[NUM_SQUARES];
 
-namespace {
+namespace {  // anonymous namespace
 
 Bitboard bishopAttackTable[5248];
 Bitboard rookAttackTable[102400];
@@ -68,7 +68,7 @@ void Bitboards::init()
 // Prints the given bitboard to stdout
 void Bitboards::print(Bitboard bitboard)
 {
-    std::cout << "    bitboard: " << bitboard << std::endl;
+    std::cout << "    bitboard: " << bitboard << "\n";
     std::cout << "  +---+---+---+---+---+---+---+---+\n";
 
     for (Rank rank = RANK_8; rank >= RANK_1; rank--)
@@ -77,13 +77,13 @@ void Bitboards::print(Bitboard bitboard)
         for (File file = FILE_A; file < NUM_FILES; file++)
             std::cout << ((bitboard & getSquareMask(rank, file)) ? "| X " : "|   ");
 
-        std::cout << "| \n  +---+---+---+---+---+---+---+---+" << std::endl;
+        std::cout << "| \n  +---+---+---+---+---+---+---+---+\n";
     }
     
     std::cout << "    a   b   c   d   e   f   g   h\n" << std::endl;
 }
 
-namespace {
+namespace {  // anonymous namespace
 
 // Precalculates all bishop and rook attacks and uses the fancy magic bitboard
 // technique to make a lookup with a board state to see where the sliding piece
