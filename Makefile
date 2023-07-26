@@ -1,12 +1,12 @@
 .DELETE_ON_ERROR:
 
+TARGET			:= chessEngine
 
-
-TARGET		:= chessEngine
-
-COMPILER	:= g++
-FLAGS		:= -Wall -std=c++17 -MMD -g
-LINKS		:=
+COMPILER	 	:= g++
+FLAGS		 	:= -Wall -std=c++17 -MMD -g
+RELEASE_FLAGS	:= -DNDEBUG -O3 -Ofast
+DEBUG_FLAGS  	:= -DDEBUG -O0
+LINKS		 	:=
 
 # Directories, Objects, and Binary 
 SRC_DIR		:= src
@@ -26,11 +26,13 @@ SRCS := $(wildcard $(SRC_DIR)/*.$(SRC_EXT))
 OBJS := $(SRCS:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_DIR)/%.$(OBJ_EXT))
 DEPS := $(OBJS:.$(OBJ_EXT)=.$(DEP_EXT))
 
-ifdef RELEASE
-    FLAGS += -DNDEBUG -O3 -Ofast
-endif
+all: FLAGS += $(RELEASE_FLAGS)
+all: createDirs
+all: $(BIN)
 
-all: createDirs $(BIN)
+debug: FLAGS += $(DEBUG_FLAGS)
+debug: createDirs
+debug: $(BIN)
 
 #Make the Directories
 createDirs:
@@ -49,6 +51,6 @@ $(BUILD_DIR)/%.$(OBJ_EXT): $(SRC_DIR)/%.$(SRC_EXT)
 clean:
 	@$(RM) -rf $(TARGET_DIR)/* $(BUILD_DIR)/*
 
-.PHONY: all clean
+.PHONY: all debug clean
 
 -include $(DEPS)

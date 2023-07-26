@@ -6,7 +6,7 @@ namespace ChessEngine {
 
 namespace {  // anonymous namespace
 
-// Helper functions for generating all pseudo-legal moves in the current position
+// Helper functions for generating all legal moves in the current position
 
 void generateKingMoves (const Position& pos, MoveList& moveList, GenType genType);
 void generatePawnMoves (const Position& pos, MoveList& moveList, GenType genType);
@@ -32,7 +32,6 @@ void generateMoves(const Position& pos, MoveList& moveList, GenType genType /*= 
         generatePieceMoves(pos, moveList, pt, genType);
 }
 
-
 namespace {  // anonymous namespace
 
 void generateKingMoves(const Position& pos, MoveList& moveList, GenType genType)
@@ -57,7 +56,7 @@ void generateKingMoves(const Position& pos, MoveList& moveList, GenType genType)
             addMove(moveList, createMove(kingSq, to));
     }
 
-    // Cannot castle while in check
+    // Verify castling availability
     if (pos.Checkers() || !canCastle(us, cr) || genType == CAPTURES)
         return;
 
@@ -98,7 +97,7 @@ void generatePawnMoves(const Position& pos, MoveList& moveList, GenType genType)
     Bitboard targets        = legalSquares(pos);
     Bitboard emptyTargets   = targets & emptySquares;
     Bitboard captureTargets = targets & enemies;
-    Bitboard pinned = pos.Pinned(us);
+    Bitboard pinned         = pos.Pinned(us);
 
     Direction up = getPawnDir(us);
     Direction upLeft  = (us == WHITE ? NORTH_WEST : SOUTH_EAST);
