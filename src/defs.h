@@ -142,11 +142,16 @@ constexpr Square operator+(Square s, Direction d) { return Square(int(s) + int(d
 constexpr Square operator-(Square s, Direction d) { return Square(int(s) - int(d)); }
 inline Square& operator+=(Square& s, Direction d) { return s = s + d; }
 inline Square& operator-=(Square& s, Direction d) { return s = s - d; }
-
+inline Color operator~(Color color) { return Color(color ^ BLACK); }
 
 constexpr Square createSquare(File file, Rank rank) 
 {
     return Square((rank << 3) + file);
+}
+
+constexpr Square relativeSquare(Square square, Color color)
+{
+    return Square(square ^ (color * 56));
 }
 
 constexpr File getFile(Square square)
@@ -180,13 +185,14 @@ constexpr Color getColor(Piece piece)
     return Color(piece >> 3);
 }
 
-inline Color operator~(Color color) {
-    return Color(color ^ BLACK);
-}
-
 constexpr Direction getPawnDir(Color color)
 {
     return color == WHITE ? NORTH : SOUTH;
+}
+
+constexpr bool canCastle(Color color, uint8_t cr)
+{
+    return cr & (color == WHITE ? WHITE_CASTLING : BLACK_CASTLING);
 }
 
 constexpr Square getFromSquare(Move move)
@@ -210,12 +216,12 @@ constexpr PieceType getPromotionType(Move move)
     return PieceType(((move >> 14) & 3) + KNIGHT);
 }
 
-constexpr Move makeMove(Square from, Square to)
+constexpr Move createMove(Square from, Square to)
 {
     return Move((to << 6) + from);
 }
 
-constexpr Move makeMoveWithFlags(Square from, Square to, MoveType mt, PieceType promotionPt = KNIGHT)
+constexpr Move createMoveWithFlags(Square from, Square to, MoveType mt, PieceType promotionPt = KNIGHT)
 {
     return Move(((promotionPt - KNIGHT) << 14) + (mt << 12) + (to << 6) + from);
 }

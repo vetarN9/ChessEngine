@@ -8,7 +8,7 @@
 
 namespace ChessEngine {
 
-namespace {
+namespace {  // anonymous namespace
 
 constexpr std::string_view PieceToAscii(" PNBRQK  pnbrqk");
 
@@ -55,13 +55,15 @@ void Position::Init()
         FEN starting posiion: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 */
 
-Position& Position::Set(const std::string& fen)
+Position& Position::Set(const std::string& fen, PosInfo* posInfo)
 {
     *this = Position();
+    *posInfo = PosInfo();
+    this->posInfo = posInfo;
 
     std::istringstream ss(fen);
     ss >> std::noskipws;
-
+    
     ParsePiecePlacement(ss);  // 1. Piece placement data
     ParseActiveColor(ss);     // 2. Active color
     ParseCastling(ss);        // 3. Castling availability
@@ -109,20 +111,24 @@ void Position::ParseCastling(std::istringstream& ss)
 
     while ((ss >> castleSide) && !isspace(castleSide))
     {
+        CastlingRight cr = NO_CASTLING;
+
         switch (castleSide)
         {
             // TODO: Check if valid castling right
-            case 'K': castlingRights |= WHITE_SHORT; break;
-            case 'Q': castlingRights |= WHITE_LONG;  break;
-            case 'k': castlingRights |= BLACK_SHORT; break;
-            case 'q': castlingRights |= BLACK_LONG;  break;
+            case 'K': cr = WHITE_SHORT; break;
+            case 'Q': cr = WHITE_LONG;  break;
+            case 'k': cr = BLACK_SHORT; break;
+            case 'q': cr = BLACK_LONG;  break;
         }
+
+        SetCastlingRights(cr);
     }
 }
 
 void Position::ParseEnpassantSquare(std::istringstream& ss)
 {
-    enpassantSquare = NO_SQUARE;
+    posInfo->enpassantSquare = NO_SQUARE;
 
     uint8_t file, rank;
     ss >> file;
@@ -133,13 +139,13 @@ void Position::ParseEnpassantSquare(std::istringstream& ss)
 
         // TODO: Check if valid en passant square
         if (true)
-            enpassantSquare = epSq;
+            posInfo->enpassantSquare = epSq;
     }
 }
 
 void Position::ParseMoveCounters(std::istringstream& ss)
 {
-    ss >> std::skipws >> fiftyMoveCounter;
+    ss >> std::skipws >> posInfo->fiftyMoveCounter;
 
     int fullmove;
     ss >> fullmove;
@@ -151,23 +157,23 @@ void Position::SetCheckingData()
     Color us = sideToMove;
     Color them = ~us;
 
-    checkersBoard = AttacksTo(KingSquare(us)) & Pieces(them);
-    
-    kingBlockers[us]   = SliderBlockers(us, KingSquare(us), pinners[them]);
-    kingBlockers[them] = SliderBlockers(them, KingSquare(them), pinners[us]);
+    posInfo->checkersBoard = AttackersTo(KingSquare(us)) & Pieces(them);
 
-    pinned[us]      = kingBlockers[us]   & Pieces(us);
-    pinned[them]    = kingBlockers[them] & Pieces(them);
-    discovery[us]   = kingBlockers[them] & Pieces(us);
-    discovery[them] = kingBlockers[us]   & Pieces(them);
+    Bitboard ourKingBlockers   = SliderBlockers(us,   KingSquare(us),   posInfo->pinners[them]);
+    Bitboard theirKingBlockers = SliderBlockers(them, KingSquare(them), posInfo->pinners[us]);
+
+    posInfo->pinned[us]      = ourKingBlockers   & Pieces(us);
+    posInfo->pinned[them]    = theirKingBlockers & Pieces(them);
+    posInfo->discovery[us]   = theirKingBlockers & Pieces(us);
+    posInfo->discovery[them] = ourKingBlockers   & Pieces(them);
 
     Square target = KingSquare(them);
 
-    checkSquares[PAWN]   = pawnAttackMask(them, target);
-    checkSquares[KNIGHT] = attackMask(KNIGHT, target);
-    checkSquares[BISHOP] = attackMask(BISHOP, target, Pieces());
-    checkSquares[ROOK]   = attackMask(ROOK,   target, Pieces());
-    checkSquares[QUEEN]  = checkSquares[BISHOP] | checkSquares[ROOK];
+    posInfo->checkSquares[PAWN]   = pawnAttackMask(them, target);
+    posInfo->checkSquares[KNIGHT] = attackMask(KNIGHT, target);
+    posInfo->checkSquares[BISHOP] = attackMask(BISHOP, target, Pieces());
+    posInfo->checkSquares[ROOK]   = attackMask(ROOK,   target, Pieces());
+    posInfo->checkSquares[QUEEN]  = posInfo->checkSquares[BISHOP] | posInfo->checkSquares[ROOK];
 }
 
 Bitboard Position::SliderBlockers(Color blocker, Square target, Bitboard& pinners) const
@@ -226,7 +232,7 @@ std::string Position::FEN() const
     oss << (sideToMove == WHITE ? " w " : " b ");
 
     // 3. Castling availability
-    if (castlingRights == NO_CASTLING)
+    if (posInfo->castlingRights == NO_CASTLING)
         oss << "-";
     
     else
@@ -235,16 +241,16 @@ std::string Position::FEN() const
         
         for (int i = WHITE_SHORT; i <= BLACK_LONG; i <<= 1)
         {
-            if (castlingRights & i)
+            if (posInfo->castlingRights & i)
                 oss << CastlingToFEN[i];
         }
     }
 
     // 4. En passant target square
-    oss << (enpassantSquare == NO_SQUARE ? " - " : ' ' + algebraicNotation(enpassantSquare) + ' ');
+    oss << (posInfo->enpassantSquare == NO_SQUARE ? " - " : ' ' + algebraicNotation(posInfo->enpassantSquare) + ' ');
 
     // 5. Halfmove clock
-    oss << fiftyMoveCounter;
+    oss << posInfo->fiftyMoveCounter;
 
     // 6. Fullmove number
     int fullmove = 1 + ((ply - (sideToMove == BLACK)) / 2);
@@ -254,14 +260,171 @@ std::string Position::FEN() const
 }
 
 // Returns the squares that contain a piece that attacks the given square
-Bitboard Position::AttacksTo(Square square, Bitboard occupancy) const 
+Bitboard Position::AttackersTo(Square square, Bitboard occupancy) const 
 {
-    return (pawnAttackMask(WHITE, square)           & Pieces(PAWN, BLACK))
-         | (pawnAttackMask(BLACK, square)           & Pieces(PAWN, WHITE))
-         | (attackMask(KNIGHT, square)              & Pieces(KNIGHT))
-         | (attackMask(ROOK, square, occupancy)     & Pieces(ROOK, QUEEN))
-         | (attackMask(BISHOP, square, occupancy)   & Pieces(BISHOP, QUEEN))
-         | (attackMask(KING, square)                & Pieces(KING));
+    return (pawnAttackMask(WHITE, square)         & Pieces(PAWN, BLACK))
+         | (pawnAttackMask(BLACK, square)         & Pieces(PAWN, WHITE))
+         | (attackMask(KNIGHT, square)            & Pieces(KNIGHT))
+         | (attackMask(ROOK, square, occupancy)   & Pieces(ROOK, QUEEN))
+         | (attackMask(BISHOP, square, occupancy) & Pieces(BISHOP, QUEEN))
+         | (attackMask(KING, square)              & Pieces(KING));
+}
+
+bool Position::SquaresNotAttacked(Bitboard bitboard, Color attacker) const
+{
+    while (bitboard)
+    {
+        if (SquareIsAttacked(popSquare(bitboard), attacker))
+            return false;
+    }
+
+    return true;
+}
+
+void Position::MakeMove(Move move, PosInfo& newPosInfo)
+{
+    std::memcpy(&newPosInfo, posInfo, sizeof(PosInfo));
+    newPosInfo.prev = posInfo;
+    posInfo = &newPosInfo;
+
+    Color us = sideToMove;
+    Color them = ~us;
+
+    Square from         = getFromSquare(move);
+    Square to           = getToSquare(move);
+    MoveType moveType   = getMoveType(move);
+    Direction pawnDir   = getPawnDir(us);
+    Piece movedPiece    = PieceOn(from);
+    Piece capturedPiece = (moveType != EN_PASSANT ? PieceOn(to) : getPiece(PAWN, them));
+    PieceType pt = getType(movedPiece);
+
+    // Update move counters
+    ply++;
+    posInfo->fiftyMoveCounter++;
+    posInfo->movesFromNull++;
+
+    if (moveType == CASTLING)
+    {
+        MakeCastling(move);
+        capturedPiece = EMPTY;
+    }
+    
+    // If there was a capture, remove the captured piece and
+    // reset the fifty move counter
+    if (capturedPiece)
+    {
+        Square capturedSq = to;
+
+        if (moveType == EN_PASSANT)
+            capturedSq -= pawnDir;
+        
+        RemovePiece(capturedSq);
+        posInfo->fiftyMoveCounter = 0;
+    }
+
+    // Update castling rights if it has changed
+    if (posInfo->castlingRights &&  (castlingRightsMask[from] | castlingRightsMask[to]))
+        posInfo->castlingRights &= ~(castlingRightsMask[from] | castlingRightsMask[to]);
+
+    // Move the piece
+    if (moveType != CASTLING)
+        MovePiece(from, to);
+    
+    // Reset the en passant square
+    posInfo->enpassantSquare = NO_SQUARE;
+
+    if (pt == PAWN)
+    {
+        // Set en passant square if double pawn push that is attacked on the square behind the pawn
+        if ((int(to) ^ int(from)) == 16 && (pawnAttackMask(us, to - pawnDir) & Pieces(PAWN, them)))
+            posInfo->enpassantSquare = to - pawnDir;
+
+        if (moveType == PROMOTION)
+        {
+            Piece promomotionPiece = getPiece(getPromotionType(move), us);
+            RemovePiece(to);
+            PlacePiece(promomotionPiece, to);
+        }
+        
+        posInfo->fiftyMoveCounter = 0;
+    }
+      
+    posInfo->capturedPiece = capturedPiece;
+    sideToMove = ~sideToMove;
+
+    SetCheckingData();
+}
+
+void Position::UndoMove(Move move)
+{
+    sideToMove = ~sideToMove;
+
+    Color us          = sideToMove;
+    Square from       = getFromSquare(move);
+    Square to         = getToSquare(move);
+    MoveType moveType = getMoveType(move);
+    Direction pawnDir = getPawnDir(us);
+
+    // Replace promoted piece with a pawn;
+    if (moveType == PROMOTION)
+    {
+        RemovePiece(to);
+        PlacePiece(getPiece(PAWN, us), to);
+    }
+    
+    if (moveType == CASTLING)
+        UndoCastling(move);
+    
+    else 
+    {
+        MovePiece(to, from);
+
+        // Restore captured piece
+        if (posInfo->capturedPiece)
+        {
+            Square capturedSq = to;
+
+            if (moveType == EN_PASSANT)
+                capturedSq -= pawnDir;
+
+            PlacePiece(posInfo->capturedPiece, capturedSq);
+        }
+    }
+
+    posInfo = posInfo->prev;
+    ply--;
+}
+
+void Position::MakeCastling(Move move)
+{
+    Color us = sideToMove;
+
+    Square kingFrom = getFromSquare(move);
+    Square kingTo   = getToSquare(move);
+
+    bool kingSide = kingFrom < kingTo;
+
+    Square rookFrom = relativeSquare(kingSide ? H1 : A1, us);
+    Square rookTo   = relativeSquare(kingSide ? F1 : D1, us);
+
+    MovePiece(kingFrom, kingTo);
+    MovePiece(rookFrom, rookTo);
+}
+
+void Position::UndoCastling(Move move)
+{
+    Color us = sideToMove;
+
+    Square kingFrom = getFromSquare(move);
+    Square kingTo   = getToSquare(move);
+
+    bool kingSide = kingFrom < kingTo;
+
+    Square rookFrom = relativeSquare(kingSide ? H1 : A1, us);
+    Square rookTo   = relativeSquare(kingSide ? F1 : D1, us);
+
+    MovePiece(kingTo, kingFrom);
+    MovePiece(rookTo, rookFrom);
 }
 
 void Position::PlacePiece(Piece piece, Square square)
@@ -281,6 +444,7 @@ void Position::MovePiece(Square from, Square to)
 {
     Bitboard moveMask = getSquareMask(from) | getSquareMask(to);
     Piece piece = pieceOnSquare[from];
+
     pieceOnSquare[from] = EMPTY;
     pieceOnSquare[to] = piece;
 
@@ -291,6 +455,7 @@ void Position::MovePiece(Square from, Square to)
 
 void Position::RemovePiece(Square square)
 {
+    assert(PieceOn(square) != EMPTY);
     Bitboard squareMask = getSquareMask(square);
     Piece piece = pieceOnSquare[square];
     pieceOnSquare[square] = EMPTY;
@@ -301,6 +466,18 @@ void Position::RemovePiece(Square square)
 
     numPieces[piece]--;
     numPieces[getPiece(ALL_PIECES, getColor(piece))]--;
+}
+
+void Position::SetCastlingRights(CastlingRight cr)
+{
+    Color color   = (cr & WHITE_CASTLING ? WHITE : BLACK);
+    Square kingSq = KingSquare(color);
+    Square rookSq = (cr & QUEEN_SIDE ? relativeSquare(A1, color)
+                                     : relativeSquare(H1, color));
+
+    posInfo->castlingRights    |= cr;
+    castlingRightsMask[kingSq] |= cr;
+    castlingRightsMask[rookSq] |= cr;
 }
 
 void Position::Print()
@@ -315,7 +492,7 @@ void Position::Print()
     
     #endif
 
-    std::cout << "  +---+---+---+---+---+---+---+---+" << std::endl;
+    std::cout << "  +---+---+---+---+---+---+---+---+\n";
 
     for (Rank rank = RANK_8; rank >= RANK_1; rank--)
     {
@@ -325,18 +502,18 @@ void Position::Print()
             std::cout << "| " << pieceToChar[pieceOnSquare[createSquare(file, rank)]] << " ";
         }
 
-        std::cout << "|\n  +---+---+---+---+---+---+---+---+" << std::endl;
+        std::cout << "|\n  +---+---+---+---+---+---+---+---+\n";
     }
     
-    std::cout << "    a   b   c   d   e   f   g   h\n" << std::endl;
+    std::cout << "    a   b   c   d   e   f   g   h\n\n";
     
-    std::cout << "        Side:         "   << (sideToMove ? "black" : "white") << std::endl;
-    std::cout << "        enpassant:    "   << ((enpassantSquare != NO_SQUARE)  ? algebraicNotation(enpassantSquare) : "no") << std::endl;
-    std::cout << "        Castling:     "   << ((castlingRights & WHITE_SHORT)  ? 'K' : '-')
-                                            << ((castlingRights & WHITE_LONG)   ? 'Q' : '-')
-                                            << ((castlingRights & BLACK_SHORT)  ? 'k' : '-')
-                                            << ((castlingRights & BLACK_LONG)   ? 'q' : '-')
-                                            << std::endl << std::endl;
+    std::cout << "        Side:         "   << (sideToMove ? "black" : "white") << "\n";
+    std::cout << "        enpassant:    "   << ((posInfo->enpassantSquare != NO_SQUARE)  ? algebraicNotation(posInfo->enpassantSquare) : "no") << "\n";
+    std::cout << "        Castling:     "   << ((posInfo->castlingRights & WHITE_SHORT)  ? 'K' : '-')
+                                            << ((posInfo->castlingRights & WHITE_LONG)   ? 'Q' : '-')
+                                            << ((posInfo->castlingRights & BLACK_SHORT)  ? 'k' : '-')
+                                            << ((posInfo->castlingRights & BLACK_LONG)   ? 'q' : '-')
+                                            << "\n" << std::endl;
 }
 
 } // namespace ChessEngine
