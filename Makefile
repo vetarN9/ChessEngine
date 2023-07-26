@@ -27,7 +27,7 @@ OBJS := $(SRCS:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_DIR)/%.$(OBJ_EXT))
 DEPS := $(OBJS:.$(OBJ_EXT)=.$(DEP_EXT))
 
 ifdef RELEASE
-    FLAGS += -DNDEBUG
+    FLAGS += -DNDEBUG -O3 -Ofast
 endif
 
 all: createDirs $(BIN)
