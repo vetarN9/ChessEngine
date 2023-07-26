@@ -6,6 +6,14 @@
 
 namespace ChessEngine {
 
+enum GenType
+{
+  ALL,
+  CAPTURES,
+  QUIETS,
+  EVASIONS
+};
+
 struct MoveData
 {
     Move move;
@@ -18,12 +26,8 @@ struct MoveList
     int count = 0;
 };
 
-enum GenType {
-  EVASIONS,
-  NON_EVASIONS,
-};
-
-void generateMoves(const Position& pos, MoveList& moveList);
+// Generates all the legal moves for the given position and populates the given moveList
+void generateMoves(const Position& pos, MoveList& moveList, GenType genType = ALL);
 
 } // namespace ChessEngine
 
