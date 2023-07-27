@@ -78,7 +78,7 @@ void perft()
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-        std::cout << "Depth " << depth << "  Nodes " << nodes << "  " << duration.count() << " milliseconds - ";
+        std::cout << "Depth " << depth << "  Nodes: " << nodes << "  Time: " << duration.count() << " ms - ";
 
         if (nodes == expectedNodes)
             std::cout << GREEN_TEXT << "PASSED" << RESET_TEXT << std::endl;
