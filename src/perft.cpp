@@ -10,40 +10,20 @@ namespace Perft {
 
 namespace {  // anonymous namespace
 
-uint64_t perft(Position& pos, int depth);
+uint64_t perft(Position& pos, int depth, bool isRoot = false);
 std::string getString(Move move);
 
 } // anonymous namespace
 
 void go(Position& pos, int depth)
 {
+    assert(depth >= 0);
+
     std::cout << "Running performance test\n\n";
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    MoveList moveList;
-    generateMoves(pos, moveList);
-
-    PosInfo posInfo;
-
-    uint64_t nodes = 0;
-
-    if (depth == 0)
-        nodes = 1;
-
-    else 
-    {
-        for (int i = 0; i < moveList.count; i++)
-        {
-            pos.MakeMove(moveList.moves[i].move, posInfo);
-            uint64_t count = perft(pos, depth - 1);
-            pos.UndoMove(moveList.moves[i].move);
-
-            nodes += count;
-
-            std::cout << "    " << getString(moveList.moves[i].move) << ": " << count << "\n";
-        }
-    }
+    uint64_t nodes = perft(pos, depth, true);
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -53,27 +33,50 @@ void go(Position& pos, int depth)
     std::cout << "Time: "    << duration.count() << " milliseconds\n" << std::endl;
 }
 
+uint64_t getNodes(Position& pos, int depth)
+{
+    return perft(pos, depth);
+}
+
 namespace {  // anonymous namespace
 
-uint64_t perft(Position& pos, int depth)
+uint64_t perft(Position& pos, int depth, bool isRoot /*= false*/)
 {
+    // Special case when 0 depth
     if (depth == 0)
         return 1;
 
     MoveList moveList;
-    generateMoves(pos, moveList);
-
     PosInfo posInfo;
-
     uint64_t nodes = 0;
+
+    // The recursive escape condition
+    bool isLeaf = (depth == 2);
+
+    MoveGen::generate(pos, moveList);
 
     for (int i = 0; i < moveList.count; i++)
     {
-        pos.MakeMove(moveList.moves[i].move, posInfo);
+        uint64_t count;
+        Move move = moveList.moves[i].move;
 
-        nodes += perft(pos, depth - 1);
+        pos.MakeMove(move, posInfo);
 
-        pos.UndoMove(moveList.moves[i].move);
+        if (isLeaf)
+        {
+            MoveList moveListLeaf;
+            MoveGen::generate(pos, moveListLeaf);
+            count = moveListLeaf.count;
+        }
+
+        else 
+            count = perft(pos, depth - 1);
+
+        pos.UndoMove(move);
+        nodes += count;
+
+        if (isRoot)
+            std::cout << "    " << getString(move) << ": " << count << "\n";
     }
 
     return nodes;

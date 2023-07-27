@@ -9,6 +9,7 @@ namespace ChessEngine {
 namespace Perft {
 
 void go(Position& pos, int depth);
+uint64_t getNodes(Position& pos, int depth);
 
 } // namespace Perft
 
