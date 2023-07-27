@@ -3,9 +3,10 @@
 TARGET			:= chessEngine
 
 COMPILER	 	:= g++
-FLAGS		 	:= -Wall -std=c++17 -MMD -g
+FLAGS		 	:= -Wall -std=c++17 -MMD
 RELEASE_FLAGS	:= -DNDEBUG -O3 -Ofast
-DEBUG_FLAGS  	:= -DDEBUG -O0
+TEST_FLAGS	    := -O3 -Ofast
+DEBUG_FLAGS  	:= -g -O0
 LINKS		 	:=
 
 # Directories, Objects, and Binary 
@@ -30,6 +31,10 @@ all: FLAGS += $(RELEASE_FLAGS)
 all: createDirs
 all: $(BIN)
 
+test: FLAGS += $(TEST_FLAGS)
+test: createDirs
+test: $(BIN)
+
 debug: FLAGS += $(DEBUG_FLAGS)
 debug: createDirs
 debug: $(BIN)
@@ -51,6 +56,6 @@ $(BUILD_DIR)/%.$(OBJ_EXT): $(SRC_DIR)/%.$(SRC_EXT)
 clean:
 	@$(RM) -rf $(TARGET_DIR)/* $(BUILD_DIR)/*
 
-.PHONY: all debug clean
+.PHONY: all debug test clean
 
 -include $(DEPS)
