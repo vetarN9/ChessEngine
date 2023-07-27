@@ -28,24 +28,17 @@ OBJS := $(SRCS:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_DIR)/%.$(OBJ_EXT))
 DEPS := $(OBJS:.$(OBJ_EXT)=.$(DEP_EXT))
 
 all: FLAGS += $(RELEASE_FLAGS)
-all: createDirs
 all: $(BIN)
 
 test: FLAGS += $(TEST_FLAGS)
-test: createDirs
 test: $(BIN)
 
 debug: FLAGS += $(DEBUG_FLAGS)
-debug: createDirs
 debug: $(BIN)
-
-#Make the Directories
-createDirs:
-	@mkdir -p $(TARGET_DIR)
-	@mkdir -p $(BUILD_DIR)
 
 # Link
 $(BIN): $(OBJS)
+	@mkdir -p $(@D)
 	@$(COMPILER) $(FLAGS) $(LINKS) $^ -o $@
 
 # Compile
