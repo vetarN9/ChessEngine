@@ -26,8 +26,12 @@ struct MoveList
     int count = 0;
 };
 
+namespace MoveGen {
+
 // Generates all the legal moves for the given position and populates the given moveList
-void generateMoves(const Position& pos, MoveList& moveList, GenType genType = ALL);
+void generate(const Position& pos, MoveList& moveList, GenType genType = ALL);
+
+} // namespace MoveGen
 
 } // namespace ChessEngine
 

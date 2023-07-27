@@ -18,7 +18,7 @@ inline Bitboard legalSquares(const Position& pos);
 
 } // anonymous namespace
 
-void generateMoves(const Position& pos, MoveList& moveList, GenType genType /*= ALL*/)
+void MoveGen::generate(const Position& pos, MoveList& moveList, GenType genType /*= ALL*/)
 {
     generateKingMoves(pos, moveList, genType);
 
