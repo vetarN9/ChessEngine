@@ -60,7 +60,6 @@ enum PieceType
     NUM_PIECE_TYPES = 8
 };
 
-
 // The third LSB indicates a sliding piece.
 // The fourth LSB indicates the color of the piece.
 enum Piece : uint8_t
@@ -167,6 +166,11 @@ constexpr Rank getRank(Square square)
 constexpr Rank relativeRank(Rank rank, Color color)
 {
     return Rank(rank ^ (color * 7));
+}
+
+constexpr bool withinBoard(Square square)
+{
+    return square >= A1 && square <= H8;
 }
 
 constexpr Piece getPiece(PieceType pt, Color color) 
