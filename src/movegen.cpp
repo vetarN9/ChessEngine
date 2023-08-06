@@ -7,13 +7,12 @@ namespace ChessEngine {
 namespace {  // anonymous namespace
 
 // Helper functions for generating all legal moves in the current position
-
 void generateKingMoves (const Position& pos, MoveList& moveList, GenType genType);
 void generatePawnMoves (const Position& pos, MoveList& moveList, GenType genType);
 void generatePieceMoves(const Position& pos, MoveList& moveList, PieceType pt, GenType genType);
 
 inline void addMove(MoveList& moveList, Move move);
-inline void addPromotionMove(MoveList& moveList, Square from, Square to);
+inline void addPromotionMoves(MoveList& moveList, Square from, Square to);
 inline Bitboard legalSquares(const Position& pos);
 
 } // anonymous namespace
@@ -42,7 +41,7 @@ void generateKingMoves(const Position& pos, MoveList& moveList, GenType genType)
     Square kingSq = pos.KingSquare(us);
     uint8_t cr = pos.CastlingRights();
     
-    Bitboard kingMoves = kingAttackMask(getSquareMask(kingSq)) & ~pos.Pieces(us);
+    Bitboard kingMoves = attackMask(KING, kingSq) & ~pos.Pieces(us);
 
     if (genType == CAPTURES)
         kingMoves &= pos.Pieces(them);
@@ -92,7 +91,7 @@ void generatePawnMoves(const Position& pos, MoveList& moveList, GenType genType)
     Bitboard promotionRank  = getRankMask(relativeRank(RANK_7, us));
     Bitboard emptySquares   = ~pos.Pieces();
     Bitboard pawns          = pos.Pieces(PAWN, us) & ~promotionRank;
-    Bitboard promoters      = pos.Pieces(PAWN, us) & promotionRank;
+    Bitboard promoters      = pos.Pieces(PAWN, us) &  promotionRank;
     Bitboard enemies        = pos.Pieces(them);
     Bitboard targets        = legalSquares(pos);
     Bitboard emptyTargets   = targets & emptySquares;
@@ -146,7 +145,7 @@ void generatePawnMoves(const Position& pos, MoveList& moveList, GenType genType)
             Square from = to - up;
 
             if (!(pinned & from) || isAligned(from, to, kingSq))
-                addPromotionMove(moveList, from, to);
+                addPromotionMoves(moveList, from, to);
         }
 
         while (capturesLeft)
@@ -155,7 +154,7 @@ void generatePawnMoves(const Position& pos, MoveList& moveList, GenType genType)
             Square from = to - upLeft;
 
             if (!(pinned & from) || isAligned(from, to, kingSq))
-                addPromotionMove(moveList, from, to);
+                addPromotionMoves(moveList, from, to);
         }
 
         while (capturesRight)
@@ -164,7 +163,7 @@ void generatePawnMoves(const Position& pos, MoveList& moveList, GenType genType)
             Square from = to - upRight;
 
             if (!(pinned & from) || isAligned(from, to, kingSq))
-                addPromotionMove(moveList, from, to);
+                addPromotionMoves(moveList, from, to);
         }
     }
 
@@ -259,23 +258,23 @@ inline void addMove(MoveList& moveList, Move move)
     moveList.count++;
 }
 
-inline void addPromotionMove(MoveList& moveList, Square from, Square to)
+// Includes underpromotion
+inline void addPromotionMoves(MoveList& moveList, Square from, Square to)
 {
-    addMove(moveList, createMoveWithFlags(from, to, PROMOTION, KNIGHT));
-    addMove(moveList, createMoveWithFlags(from, to, PROMOTION, BISHOP));
-    addMove(moveList, createMoveWithFlags(from, to, PROMOTION, ROOK));
-    addMove(moveList, createMoveWithFlags(from, to, PROMOTION, QUEEN));
+    for (PieceType pt : {KNIGHT, BISHOP, ROOK, QUEEN})
+        addMove(moveList, createMoveWithFlags(from, to, PROMOTION, pt));
 }
 
 // If in check, returns the squares that resolves the check,
 // Otherwise, return all squares not occupied by the side to move
 inline Bitboard legalSquares(const Position& pos)
 {
-    Color    us = pos.SideToMove();
-    Bitboard ch = pos.Checkers();
-    Square  kSq = pos.KingSquare(us);
+    Color us = pos.SideToMove();
+    Square kSq = pos.KingSquare(us);
+    Bitboard checkers = pos.Checkers();
 
-    return (ch ? getBetweenMask(kSq, getSquare(ch)) : ~pos.Pieces(us));
+    // The case with double double check have been handled before this
+    return (checkers ? getBetweenMask(kSq, firstSquare(checkers)) : ~pos.Pieces(us));
 }
 
 } // anonymous namespace
