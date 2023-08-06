@@ -1,5 +1,4 @@
 #include <iostream>
-#include <bitset>
 
 #include "bitboard.h"
 
@@ -21,51 +20,37 @@ Bitboard rookAttackTable[102400];
 
 void initMagics(PieceType pt, Magic magics[], Bitboard attackTable[]);
 Bitboard slidingAttack(PieceType pt, Square attackerSquare, Bitboard blockers);
+inline int numBits(Bitboard bitboard);
+
+inline void initAttackTables(Square sq);
+inline void initLineAndBetweenMasks(Square from);
+
+constexpr Bitboard pawnAttackMask(Bitboard pawn, Color color);
+constexpr Bitboard kingAttackMask(Bitboard king);
+constexpr Bitboard knightAttackMask(Bitboard knight);
+
+inline uint32_t random32();
+inline Bitboard random64();
+inline Bitboard random64FewBits();
 
 } // anonymous namespace
 
-
-// Initializes pre-calculated attack tables using magic bitboards
 void Bitboards::init()
 {
-    // Init square mask
-    for (Square square = A1; square < NUM_SQUARES; square++)
-        squareMasks[square] = 1ULL << square;
-
-    // Init between mask
+    // Init square masks
+    for (Square sq = A1; sq < NUM_SQUARES; sq++)
+        squareMasks[sq] = 1ULL << sq;
     
     initMagics(BISHOP, bishopMagics, bishopAttackTable);
     initMagics(ROOK, rookMagics, rookAttackTable);
 
-    // Init pseudo attack tables
     for (Square sq = A1; sq < NUM_SQUARES; sq++)
     {
-        pawnAttacks[WHITE][sq]    = pawnAttackMask(squareMasks[sq], WHITE);
-        pawnAttacks[BLACK][sq]    = pawnAttackMask(squareMasks[sq], BLACK);
-        pseudoAttacks[KING][sq]   = kingAttackMask(squareMasks[sq]);
-        pseudoAttacks[KNIGHT][sq] = knightAttackMask(squareMasks[sq]);
-        pseudoAttacks[BISHOP][sq] = attackMask(BISHOP, sq, 0);
-        pseudoAttacks[ROOK][sq]   = attackMask(ROOK,   sq, 0);
-        pseudoAttacks[QUEEN][sq]  = pseudoAttacks[BISHOP][sq] | pseudoAttacks[ROOK][sq];
-
-        // Init line and between masks
-        for (Square sq2 = A1; sq2 < NUM_SQUARES; sq2++)
-        {
-            for (PieceType pt : { BISHOP, ROOK })
-            {
-                if (pseudoAttacks[pt][sq] & sq2)
-                {
-                    lineMask[sq][sq2]    = (attackMask(pt, sq, 0) & attackMask(pt, sq2, 0)) | sq | sq2;
-                    betweenMask[sq][sq2] = (attackMask(pt, sq, getSquareMask(sq2)) & attackMask(pt, sq2, getSquareMask(sq)));
-                }
-
-                betweenMask[sq][sq2] |= sq2;
-            }
-        }
+        initAttackTables(sq);
+        initLineAndBetweenMasks(sq);
     }
 }
 
-// Prints the given bitboard to stdout
 void Bitboards::print(Bitboard bitboard)
 {
     std::cout << "    bitboard: " << bitboard << "\n";
@@ -126,7 +111,7 @@ void initMagics(PieceType pt, Magic magics[], Bitboard attackTable[])
 
             // Verify that the magic number maps each blockers to an index that 
             // looks up the correct sliding attack
-            for (++count, i = 0; i < size; ++i)
+            for (count++, i = 0; i < size; i++)
             {
                 uint32_t index = m.index(blockers[i]);
 
@@ -154,13 +139,102 @@ Bitboard slidingAttack(PieceType pt, Square attackerSquare, Bitboard blockers)
 
     for (Direction dir : (pt == BISHOP ? cross : plus))
     {
-        int square = attackerSquare;
+        Square sq = attackerSquare;
 
-        while (shift(squareMasks[square], dir) && !(squareMasks[square] & blockers))
-            attacks |= squareMasks[square += dir];
+        while (shift(squareMasks[sq], dir) && !(squareMasks[sq] & blockers))
+            attacks |= squareMasks[sq += dir];
     }
 
     return attacks;
+}
+
+inline int numBits(Bitboard bitboard)
+{
+    int numBits = 0;
+
+    while (bitboard)
+    {
+        bitboard &= bitboard - 1;
+        numBits++;
+    }
+    
+    return numBits;
+}
+
+inline void initAttackTables(Square sq)
+{
+    pawnAttacks[WHITE][sq]    = pawnAttackMask(squareMasks[sq], WHITE);
+    pawnAttacks[BLACK][sq]    = pawnAttackMask(squareMasks[sq], BLACK);
+    pseudoAttacks[KING][sq]   = kingAttackMask(squareMasks[sq]);
+    pseudoAttacks[KNIGHT][sq] = knightAttackMask(squareMasks[sq]);
+    pseudoAttacks[BISHOP][sq] = attackMask(BISHOP, sq, 0);
+    pseudoAttacks[ROOK][sq]   = attackMask(ROOK,   sq, 0);
+    pseudoAttacks[QUEEN][sq]  = pseudoAttacks[BISHOP][sq] | pseudoAttacks[ROOK][sq];
+}
+
+inline void initLineAndBetweenMasks(Square from)
+{
+    for (Square to = A1; to < NUM_SQUARES; to++)
+    {
+        for (PieceType pt : { BISHOP, ROOK })
+        {
+            if (pseudoAttacks[pt][from] & to)
+            {
+                lineMask[from][to]    = (attackMask(pt, from, 0) & attackMask(pt, to, 0)) | from | to;
+                betweenMask[from][to] = (attackMask(pt, from, getSquareMask(to)) & attackMask(pt, to, getSquareMask(from)));
+            }
+
+            // Also add the destination square
+            betweenMask[from][to] |= to;
+        }
+    }
+}
+
+constexpr Bitboard pawnAttackMask(Bitboard pawn, Color color)
+{
+    return (color == WHITE) ? shift(pawn, NORTH_WEST) | shift(pawn, NORTH_EAST)
+                            : shift(pawn, SOUTH_WEST) | shift(pawn, SOUTH_EAST);
+}
+
+constexpr Bitboard kingAttackMask(Bitboard king)
+{
+    return shift(king, NORTH) | shift(king, NORTH_EAST) |
+           shift(king,  EAST) | shift(king, SOUTH_EAST) |
+           shift(king, SOUTH) | shift(king, SOUTH_WEST) |
+           shift(king,  WEST) | shift(king, NORTH_WEST);
+}
+
+constexpr Bitboard knightAttackMask(Bitboard knight)
+{
+    return shift(shift(knight, NORTH), NORTH_EAST) | shift(shift(knight, NORTH), NORTH_WEST) |
+           shift(shift(knight, SOUTH), SOUTH_EAST) | shift(shift(knight, SOUTH), SOUTH_WEST) |
+           shift(shift(knight, EAST),  NORTH_EAST) | shift(shift(knight,  EAST), SOUTH_EAST) |
+           shift(shift(knight, WEST),  NORTH_WEST) | shift(shift(knight,  WEST), SOUTH_WEST);
+}
+
+inline uint32_t random32()
+{
+    static uint32_t random = 1804289383;
+    
+    // XOR shift algorithm
+    random ^= random << 13;
+    random ^= random >> 17;
+    random ^= random << 5;
+    
+    return random;
+}
+
+inline Bitboard random64()
+{
+    return ((Bitboard)((random32()) & 0xFFFF) << 0)  |
+           ((Bitboard)((random32()) & 0xFFFF) << 16) |
+           ((Bitboard)((random32()) & 0xFFFF) << 32) |
+           ((Bitboard)((random32()) & 0xFFFF) << 48);
+}
+
+inline Bitboard random64FewBits() 
+{
+    return random64() & random64() & random64();
 }
 
 } // anonymous namespace
