@@ -105,7 +105,7 @@ private:
 inline Square Position::KingSquare(Color color) const
 {
     assert(Pieces(KING, color) && "Position must include one king of both sides");
-    return getSquare(Pieces(KING, color));
+    return firstSquare(Pieces(KING, color));
 }
 
 } // namespace ChessEngine

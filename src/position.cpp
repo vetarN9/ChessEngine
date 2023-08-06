@@ -290,11 +290,11 @@ void Position::MakeMove(Move move, PosInfo& newPosInfo)
     Color us = sideToMove;
     Color them = ~us;
 
-    Square from         = getFromSquare(move);
-    Square to           = getToSquare(move);
-    MoveType moveType   = getMoveType(move);
-    Direction pawnDir   = getPawnDir(us);
-    Piece movedPiece    = PieceOn(from);
+    Square from = getFromSquare(move);
+    Square to   = getToSquare(move);
+    MoveType moveType = getMoveType(move);
+    Direction pawnDir = getPawnDir(us);
+    Piece movedPiece  = PieceOn(from);
     Piece capturedPiece = (moveType != EN_PASSANT ? PieceOn(to) : getPiece(PAWN, them));
     PieceType pt = getType(movedPiece);
 
