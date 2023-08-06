@@ -13,13 +13,12 @@ namespace ChessEngine {
 namespace Test {
 
 #define GREEN_TEXT "\033[32m"
-
 #define RED_TEXT "\033[31m"
-
 #define RESET_TEXT "\033[0m"
 
 void perft()
 {
+    // Depth - nodes - fen
     const std::vector<std::string> testCases =
     {
         "5 4865609 rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
